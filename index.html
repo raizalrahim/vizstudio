@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIZSTUDIO — Music Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #080808;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --border: #2a2a2a;
+    --accent: #e8ff00;
+    --text: #f0f0f0;
+    --text-dim: #666;
+    --panel-radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+  /* HEADER */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 100; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 4px; color: var(--accent); }
+  .logo span { color: var(--text-dim); font-size: 13px; font-family: 'Space Mono', monospace; letter-spacing: 1px; display: block; margin-top: -4px; }
+  .header-controls { display: flex; align-items: center; gap: 12px; }
+
+  /* UPLOAD ZONE */
+  #upload-zone { margin: 32px 28px 0; border: 2px dashed var(--border); border-radius: var(--panel-radius); padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface); position: relative; }
+  #upload-zone:hover, #upload-zone.dragover { border-color: var(--accent); background: rgba(232,255,0,0.03); }
+  #upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  #upload-zone .upload-icon { font-size: 36px; margin-bottom: 12px; }
+  #upload-zone h3 { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--text-dim); letter-spacing: 1px; }
+  #upload-zone p { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+
+  /* PLAYER BAR */
+  #player-bar { margin: 20px 28px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--panel-radius); padding: 16px 24px; display: none; align-items: center; gap: 16px; flex-wrap: wrap; }
+  #player-bar.visible { display: flex; }
+  .track-info { flex: 1; min-width: 140px; }
+  .track-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-meta { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+  .player-controls { display: flex; align-items: center; gap: 10px; }
+
+  .btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.active { border-color: var(--accent); color: var(--accent); background: rgba(232,255,0,0.08); }
+
+  #play-btn { width: 44px; height: 44px; border-radius: 50%; justify-content: center; font-size: 16px; padding: 0; }
+
+  .progress-wrap { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 120px; }
+  .progress-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; position: relative; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.1s linear; pointer-events: none; }
+  .time-label { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+
+  .volume-wrap { display: flex; align-items: center; gap: 8px; }
+  input[type=range] { -webkit-appearance: none; width: 80px; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+
+  /* STEM MODE BADGE */
+  .mode-badge { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px; padding: 3px 8px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-dim); }
+  .mode-badge.stems { border-color: #a259ff; color: #a259ff; background: rgba(162,89,255,0.08); }
+  .mode-badge.mixed { border-color: var(--accent); color: var(--accent); background: rgba(232,255,0,0.06); }
+
+  /* PANELS */
+  #panels-section { padding: 24px 28px 40px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; }
+
+  #panels-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+
+  .viz-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--panel-radius); overflow: hidden; transition: border-color 0.2s; position: relative; }
+  .viz-panel:hover { border-color: #333; }
+  .viz-panel.dragging { opacity: 0.4; border-color: var(--accent) !important; }
+  .viz-panel.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .viz-panel.has-stem { border-color: #2a2040; }
+  .viz-panel.fullscreen-panel { position: fixed; inset: 0; z-index: 200; border-radius: 0; border: none; width: 100vw; height: 100vh; }
+  .viz-panel.fullscreen-panel .panel-canvas { height: calc(100vh - 110px); }
+
+  .panel-header { padding: 12px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); user-select: none; }
+  .drag-handle { color: var(--text-dim); font-size: 13px; cursor: grab; flex-shrink: 0; }
+  .drag-handle:active { cursor: grabbing; }
+  .panel-band-label { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; flex: 1; }
+  .panel-freq { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+  .panel-actions { display: flex; gap: 5px; }
+  .panel-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); width: 26px; height: 26px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s; flex-shrink: 0; }
+  .panel-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .panel-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(232,255,0,0.08); }
+  .panel-btn.muted { border-color: #ff4444; color: #ff4444; background: rgba(255,68,68,0.08); }
+
+  /* STEM SLOT */
+  .stem-slot { padding: 8px 16px; background: #0d0d1a; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; min-height: 36px; }
+  .stem-slot-label { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px; color: #a259ff; flex-shrink: 0; }
+  .stem-filename { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stem-load-btn { background: none; border: 1px dashed #3a2a5a; color: #a259ff; font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px; padding: 3px 10px; border-radius: 4px; cursor: pointer; white-space: nowrap; transition: all 0.15s; position: relative; flex-shrink: 0; }
+  .stem-load-btn:hover { border-color: #a259ff; background: rgba(162,89,255,0.1); }
+  .stem-load-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .stem-clear-btn { background: none; border: none; color: #555; cursor: pointer; font-size: 13px; padding: 0 2px; transition: color 0.15s; flex-shrink: 0; }
+  .stem-clear-btn:hover { color: #ff4444; }
+
+  .panel-canvas-wrap { position: relative; }
+  .panel-canvas { width: 100%; height: 180px; display: block; }
+  .panel-level-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--border); }
+  .panel-level-fill { height: 100%; transition: width 0.05s; border-radius: 0 2px 2px 0; }
+
+  /* SETTINGS */
+  .panel-settings { padding: 14px 16px; border-top: 1px solid var(--border); display: none; flex-direction: column; gap: 10px; }
+  .panel-settings.open { display: flex; }
+  .setting-row { display: flex; align-items: center; gap: 10px; }
+  .setting-label { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px; color: var(--text-dim); width: 90px; flex-shrink: 0; }
+  .setting-row input[type=range] { flex: 1; width: auto; }
+  .setting-row input[type=color] { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; padding: 2px; }
+  .setting-row select { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-family: 'Space Mono', monospace; font-size: 10px; cursor: pointer; }
+  .setting-row select:focus { outline: none; border-color: var(--accent); }
+  .setting-value { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); width: 28px; text-align: right; }
+
+  /* ADD PANEL */
+  .add-panel-card { background: var(--surface); border: 2px dashed var(--border); border-radius: var(--panel-radius); display: flex; align-items: center; justify-content: center; min-height: 260px; cursor: pointer; transition: all 0.2s; flex-direction: column; gap: 10px; color: var(--text-dim); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; }
+  .add-panel-card:hover { border-color: var(--accent); color: var(--accent); }
+  .add-panel-card .plus { font-size: 32px; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 300; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--panel-radius); padding: 28px; width: 360px; max-width: 95vw; }
+  .modal h3 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px; margin-bottom: 20px; color: var(--accent); }
+  .modal-band-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+  .band-option { padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 12px; }
+  .band-option:hover { border-color: var(--accent); background: rgba(232,255,0,0.04); }
+  .band-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .band-info strong { font-family: 'Space Mono', monospace; font-size: 12px; display: block; }
+  .band-info span { font-size: 11px; color: var(--text-dim); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* IDLE CANVAS STATE */
+  .panel-idle-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; pointer-events: none; opacity: 1; transition: opacity 0.4s; }
+  .panel-idle-overlay.hidden { opacity: 0; }
+  .idle-bars { display: flex; align-items: flex-end; gap: 3px; height: 28px; }
+  .idle-bar { width: 3px; background: var(--border); border-radius: 2px; animation: idlePulse 1.4s ease-in-out infinite; }
+  .idle-bar:nth-child(1) { animation-delay: 0s;    height: 8px; }
+  .idle-bar:nth-child(2) { animation-delay: 0.15s; height: 14px; }
+  .idle-bar:nth-child(3) { animation-delay: 0.3s;  height: 20px; }
+  .idle-bar:nth-child(4) { animation-delay: 0.45s; height: 14px; }
+  .idle-bar:nth-child(5) { animation-delay: 0.6s;  height: 8px; }
+  .idle-bar:nth-child(6) { animation-delay: 0.75s; height: 14px; }
+  .idle-bar:nth-child(7) { animation-delay: 0.9s;  height: 20px; }
+  @keyframes idlePulse { 0%,100% { opacity: 0.2; transform: scaleY(0.6); } 50% { opacity: 0.5; transform: scaleY(1); } }
+  .idle-text { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 2px; color: var(--text-dim); opacity: 0.5; }
+
+  /* STEM SYNC INDICATOR */
+  .stem-sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #333; flex-shrink: 0; transition: background 0.3s; }
+  .stem-sync-dot.live { background: #00ff88; box-shadow: 0 0 6px #00ff88; animation: livePulse 1.5s ease-in-out infinite; }
+  .stem-sync-dot.paused { background: #ff8c00; box-shadow: none; animation: none; }
+  @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">VIZSTUDIO <span>MUSIC VISUALIZER</span></div>
+  <div class="header-controls">
+    <span class="mode-badge" id="mode-badge">NO FILE</span>
+    <button class="btn" id="toggle-upload-btn">HIDE UPLOAD</button>
+    <button class="btn" id="add-panel-btn">+ ADD PANEL</button>
+    <button class="btn" id="reset-btn">RESET</button>
+  </div>
+</header>
+
+<div id="upload-zone">
+  <input type="file" id="file-input" accept="audio/*">
+  <div class="upload-icon">🎵</div>
+  <h3>DROP A MUSIC FILE OR CLICK TO BROWSE</h3>
+  <p>MP3 · WAV · FLAC · OGG · M4A &nbsp;·&nbsp; Or skip this and load stems directly into panels below</p>
+</div>
+
+<div id="player-bar">
+  <div class="track-info">
+    <div class="track-name" id="track-name">—</div>
+    <div class="track-meta" id="track-meta">READY</div>
+  </div>
+  <div class="player-controls">
+    <button class="btn" id="play-btn" style="width:44px;height:44px;border-radius:50%;justify-content:center;font-size:18px;padding:0;">▶</button>
+    <label class="btn" style="cursor:pointer;position:relative;">
+      ⏏ CHANGE TRACK
+      <input type="file" id="change-file-input" accept="audio/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+    </label>
+  </div>
+  <div class="progress-wrap">
+    <span class="time-label" id="time-current">0:00</span>
+    <div class="progress-track" id="progress-track">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <span class="time-label" id="time-total">0:00</span>
+  </div>
+  <div class="volume-wrap">
+    <span style="font-size:14px">🔊</span>
+    <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="0.8">
+  </div>
+</div>
+
+<div id="panels-section">
+  <div class="section-header">
+    <span class="section-title">FREQUENCY PANELS</span>
+    <span class="section-title" id="status-label">NO FILE LOADED</span>
+  </div>
+  <div id="panels-grid"></div>
+</div>
+
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <h3>ADD PANEL</h3>
+    <div class="modal-band-list" id="band-list"></div>
+    <div class="modal-actions">
+      <button class="btn" id="modal-cancel">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main track audio (audible) -->
+<audio id="audio-el"></audio>
+
+<script>
+// ─── BAND & VIZ DEFS ──────────────────────────────────────────────────────────
+const BANDS = [
+  { id:'sub',   label:'SUB BASS',   freq:'20–60 Hz',    color:'#ff3cac', fLow:20,   fHigh:60    },
+  { id:'bass',  label:'BASS',       freq:'60–250 Hz',   color:'#e8ff00', fLow:60,   fHigh:250   },
+  { id:'lomid', label:'LOW MIDS',   freq:'250–500 Hz',  color:'#00f5ff', fLow:250,  fHigh:500   },
+  { id:'mid',   label:'MIDS',       freq:'500–2k Hz',   color:'#ff8c00', fLow:500,  fHigh:2000  },
+  { id:'himid', label:'HIGH MIDS',  freq:'2k–4k Hz',    color:'#a259ff', fLow:2000, fHigh:4000  },
+  { id:'high',  label:'HIGHS',      freq:'4k–20k Hz',   color:'#00ff88', fLow:4000, fHigh:20000 },
+  { id:'all',   label:'FULL RANGE', freq:'20–20k Hz',   color:'#ffffff', fLow:20,   fHigh:20000 },
+];
+const VIZ_TYPES = ['BARS','WAVE','CIRCLE','MIRROR BARS','PARTICLES','OSCILLOSCOPE','SPECTRUM FILL','RADIAL BARS'];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let masterAudioCtx = null;
+let masterAnalyser = null;
+let masterGain = null;
+let masterSource = null;
+let masterFreqData = null;
+let masterTimeData = null;
+
+// stems: Map<panelId, { audioEl, analyser, gainNode, source, freqData, timeData, muted }>
+const stemMap = new Map();
+
+let panels = [];
+let panelId = 0;
+let isPlaying = false;
+let animFrameId;
+let hasMasterTrack = false;
+const FFT = 2048;
+
+const audioEl = document.getElementById('audio-el');
+const volSlider = document.getElementById('vol-slider');
+
+// ─── AUDIO CTX ────────────────────────────────────────────────────────────────
+function ensureAudioCtx() {
+  if (masterAudioCtx) return;
+  masterAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function setupMasterAnalyser() {
+  ensureAudioCtx();
+  if (masterSource) return;
+  masterAnalyser = masterAudioCtx.createAnalyser();
+  masterAnalyser.fftSize = FFT;
+  masterGain = masterAudioCtx.createGain();
+  masterSource = masterAudioCtx.createMediaElementSource(audioEl);
+  masterSource.connect(masterGain);
+  masterGain.connect(masterAnalyser);
+  masterAnalyser.connect(masterAudioCtx.destination);
+  masterFreqData = new Uint8Array(masterAnalyser.frequencyBinCount);
+  masterTimeData = new Uint8Array(masterAnalyser.fftSize);
+  masterGain.gain.value = parseFloat(volSlider.value);
+}
+
+// ─── STEM AUDIO ───────────────────────────────────────────────────────────────
+function createStemAudio(panelId, file) {
+  ensureAudioCtx();
+  // clean up old stem for this panel if any
+  removeStemAudio(panelId);
+
+  const el = document.createElement('audio');
+  el.src = URL.createObjectURL(file);
+  el.load();
+  document.body.appendChild(el);
+
+  const analyser = masterAudioCtx.createAnalyser();
+  analyser.fftSize = FFT;
+  const gainNode = masterAudioCtx.createGain();
+  const source = masterAudioCtx.createMediaElementSource(el);
+  source.connect(gainNode);
+  gainNode.connect(analyser);
+
+  const stem = {
+    audioEl: el,
+    analyser,
+    gainNode,
+    source,
+    freqData: new Uint8Array(analyser.frequencyBinCount),
+    timeData: new Uint8Array(analyser.fftSize),
+    muted: false,
+    fileName: file.name,
+  };
+  stemMap.set(panelId, stem);
+
+  // Route audio: if no master track, stems play audibly
+  routeStemAudio();
+
+  // Sync stem to current master position
+  syncStemToMaster(stem);
+
+  return stem;
+}
+
+function removeStemAudio(panelId) {
+  const stem = stemMap.get(panelId);
+  if (!stem) return;
+  stem.audioEl.pause();
+  stem.audioEl.src = '';
+  stem.audioEl.remove();
+  stemMap.delete(panelId);
+  routeStemAudio();
+}
+
+function routeStemAudio() {
+  // If master track exists: stems are silent (analysis only)
+  // If no master track: stems connect to destination (audible)
+  stemMap.forEach(stem => {
+    stem.gainNode.disconnect();
+    stem.gainNode.connect(stem.analyser);
+    if (!hasMasterTrack) {
+      stem.gainNode.connect(masterAudioCtx.destination);
+    }
+    stem.gainNode.gain.value = stem.muted ? 0 : parseFloat(volSlider.value);
+  });
+}
+
+function syncStemToMaster(stem) {
+  const master = hasMasterTrack ? audioEl : getFirstStemEl();
+  if (!master || !stem.audioEl) return;
+  stem.audioEl.currentTime = master.currentTime;
+  if (isPlaying) stem.audioEl.play().catch(()=>{});
+}
+
+function getFirstStemEl() {
+  const first = stemMap.values().next().value;
+  return first ? first.audioEl : null;
+}
+
+// ─── MASTER CLOCK (for stems-only mode) ──────────────────────────────────────
+function getMasterEl() {
+  return hasMasterTrack ? audioEl : getFirstStemEl();
+}
+
+function getMasterDuration() {
+  const el = getMasterEl();
+  return el ? el.duration || 0 : 0;
+}
+
+function getMasterCurrentTime() {
+  const el = getMasterEl();
+  return el ? el.currentTime || 0 : 0;
+}
+
+// ─── PLAY / PAUSE ─────────────────────────────────────────────────────────────
+document.getElementById('play-btn').addEventListener('click', () => {
+  if (!hasMasterTrack && stemMap.size === 0) return;
+  ensureAudioCtx();
+  if (masterAudioCtx.state === 'suspended') masterAudioCtx.resume();
+  if (isPlaying) pauseAll();
+  else playAll();
+});
+
+function playAll() {
+  if (hasMasterTrack) audioEl.play().catch(()=>{});
+  stemMap.forEach(s => s.audioEl.play().catch(()=>{}));
+  setPlaying(true);
+  resyncStems();
+}
+
+function pauseAll() {
+  if (hasMasterTrack) audioEl.pause();
+  stemMap.forEach(s => s.audioEl.pause());
+  setPlaying(false);
+}
+
+function setPlaying(v) {
+  isPlaying = v;
+  document.getElementById('play-btn').textContent = v ? '⏸' : '▶';
+  document.getElementById('status-label').textContent = v ? 'PLAYING' : 'PAUSED';
+}
+
+audioEl.addEventListener('ended', () => setPlaying(false));
+
+// Periodic re-sync to prevent drift (every 3s)
+let resyncTimer = null;
+function resyncStems() {
+  clearInterval(resyncTimer);
+  if (!isPlaying) return;
+  resyncTimer = setInterval(() => {
+    const masterTime = hasMasterTrack ? audioEl.currentTime : null;
+    stemMap.forEach((stem, pid) => {
+      if (!hasMasterTrack) return; // stems-only: no drift correction needed, they play freely
+      if (masterTime === null) return;
+      if (Math.abs(stem.audioEl.currentTime - masterTime) > 0.08) {
+        stem.audioEl.currentTime = masterTime;
+      }
+    });
+  }, 3000);
+}
+
+// ─── PROGRESS ─────────────────────────────────────────────────────────────────
+document.getElementById('progress-track').addEventListener('click', e => {
+  const dur = getMasterDuration();
+  if (!dur) return;
+  const r = document.getElementById('progress-track').getBoundingClientRect();
+  const pct = (e.clientX - r.left) / r.width;
+  const t = pct * dur;
+  if (hasMasterTrack) audioEl.currentTime = t;
+  stemMap.forEach(s => { s.audioEl.currentTime = t; });
+});
+
+function updateProgress() {
+  const cur = getMasterCurrentTime();
+  const dur = getMasterDuration();
+  if (!dur) return;
+  document.getElementById('progress-fill').style.width = (cur / dur * 100) + '%';
+  document.getElementById('time-current').textContent = fmtTime(cur);
+  document.getElementById('time-total').textContent = fmtTime(dur);
+}
+
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s/60), sec = Math.floor(s%60);
+  return m + ':' + (sec<10?'0':'')+sec;
+}
+
+// ─── VOLUME ───────────────────────────────────────────────────────────────────
+volSlider.addEventListener('input', () => {
+  const v = parseFloat(volSlider.value);
+  if (masterGain) masterGain.gain.value = v;
+  audioEl.volume = v;
+  stemMap.forEach(s => { if (!s.muted) s.gainNode.gain.value = v; });
+});
+
+// ─── LOAD MASTER TRACK ────────────────────────────────────────────────────────
+function loadFile(file) {
+  ensureAudioCtx();
+  setupMasterAnalyser();
+  if (masterAudioCtx.state === 'suspended') masterAudioCtx.resume();
+  pauseAll();
+  audioEl.src = URL.createObjectURL(file);
+  audioEl.load();
+  hasMasterTrack = true;
+  document.getElementById('track-name').textContent = file.name.replace(/\.[^.]+$/, '').toUpperCase();
+  document.getElementById('track-meta').textContent = file.type.toUpperCase() + ' · ' + (file.size/1e6).toFixed(1) + ' MB';
+  document.getElementById('player-bar').classList.add('visible');
+  document.getElementById('upload-zone').style.display = 'none';
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('time-current').textContent = '0:00';
+  audioEl.onloadedmetadata = () => {
+    document.getElementById('time-total').textContent = fmtTime(audioEl.duration);
+  };
+  // re-route stems to silent (master now handles audio)
+  routeStemAudio();
+  updateModeBadge();
+  startLoop();
+  masterGain.gain.value = parseFloat(volSlider.value);
+}
+
+document.getElementById('file-input').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); });
+document.getElementById('change-file-input').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); e.target.value=''; });
+
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if(f) loadFile(f); });
+
+// ─── RESET ────────────────────────────────────────────────────────────────────
+document.getElementById('reset-btn').addEventListener('click', () => {
+  pauseAll();
+  clearInterval(resyncTimer);
+  audioEl.src = '';
+  hasMasterTrack = false;
+  stemMap.forEach((_, id) => removeStemAudio(id));
+  panels = [];
+  renderPanelsGrid();
+  document.getElementById('player-bar').classList.remove('visible');
+  // restore upload zone visibility on reset
+  document.getElementById('upload-zone').style.display = '';
+  uploadZoneHidden = false;
+  document.getElementById('toggle-upload-btn').textContent = 'HIDE UPLOAD';
+  document.getElementById('status-label').textContent = 'NO FILE LOADED';
+  updateModeBadge();
+  cancelAnimationFrame(animFrameId);
+});
+
+// ─── TOGGLE UPLOAD ZONE ───────────────────────────────────────────────────────
+let uploadZoneHidden = false;
+document.getElementById('toggle-upload-btn').addEventListener('click', () => {
+  const zone = document.getElementById('upload-zone');
+  // only allow hiding if player bar is not visible (no track loaded)
+  // if player bar is visible, upload zone is already hidden by loadFile — just toggle the btn label
+  uploadZoneHidden = !uploadZoneHidden;
+  zone.style.display = uploadZoneHidden ? 'none' : '';
+  document.getElementById('toggle-upload-btn').textContent = uploadZoneHidden ? 'SHOW UPLOAD' : 'HIDE UPLOAD';
+});
+
+// ─── MODE BADGE ───────────────────────────────────────────────────────────────
+function updateModeBadge() {
+  const badge = document.getElementById('mode-badge');
+  const stemCount = stemMap.size;
+  if (!hasMasterTrack && stemCount === 0) { badge.textContent = 'NO FILE'; badge.className = 'mode-badge'; return; }
+  if (hasMasterTrack && stemCount === 0)  { badge.textContent = 'FULL MIX'; badge.className = 'mode-badge mixed'; return; }
+  if (hasMasterTrack && stemCount > 0)    { badge.textContent = `MIX + ${stemCount} STEM${stemCount>1?'S':''}`; badge.className = 'mode-badge mixed'; return; }
+  if (!hasMasterTrack && stemCount > 0)   { badge.textContent = `${stemCount} STEM${stemCount>1?'S':''} ONLY`; badge.className = 'mode-badge stems'; }
+}
+
+// Show player bar when first stem is loaded (no master track)
+function ensurePlayerBarVisible() {
+  if (!document.getElementById('player-bar').classList.contains('visible')) {
+    document.getElementById('player-bar').classList.add('visible');
+    document.getElementById('upload-zone').style.display = 'none';
+    document.getElementById('track-name').textContent = 'STEMS ONLY';
+    document.getElementById('track-meta').textContent = 'PLAYING FROM STEM FILES';
+    startLoop();
+  }
+}
+
+// ─── ADD PANEL MODAL ──────────────────────────────────────────────────────────
+function openAddModal() {
+  const list = document.getElementById('band-list');
+  list.innerHTML = '';
+  BANDS.forEach(b => {
+    const d = document.createElement('div');
+    d.className = 'band-option';
+    d.innerHTML = `<div class="band-dot" style="background:${b.color}"></div>
+      <div class="band-info"><strong>${b.label}</strong><span>${b.freq}</span></div>`;
+    d.addEventListener('click', () => { addPanel(b); closeModal(); });
+    list.appendChild(d);
+  });
+  document.getElementById('add-modal').classList.add('open');
+}
+document.getElementById('add-panel-btn').addEventListener('click', openAddModal);
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('add-modal').addEventListener('click', e => { if(e.target===document.getElementById('add-modal')) closeModal(); });
+function closeModal() { document.getElementById('add-modal').classList.remove('open'); }
+
+// ─── PANEL MANAGEMENT ─────────────────────────────────────────────────────────
+function addPanel(band) {
+  const id = ++panelId;
+  panels.push({ id, band, vizType: VIZ_TYPES[0], color: band.color, color2: '#000000', sensitivity: 1.2, settingsOpen: false, fullscreen: false, label: band.label, particles: [] });
+  renderPanelsGrid();
+}
+
+function removePanel(id) {
+  removeStemAudio(id);
+  panels = panels.filter(p => p.id !== id);
+  renderPanelsGrid();
+  updateModeBadge();
+}
+
+function renderPanelsGrid() {
+  const grid = document.getElementById('panels-grid');
+  grid.innerHTML = '';
+  panels.forEach(p => grid.appendChild(createPanelEl(p)));
+  const add = document.createElement('div');
+  add.className = 'add-panel-card';
+  add.innerHTML = '<div class="plus">＋</div><span>ADD PANEL</span>';
+  add.addEventListener('click', openAddModal);
+  grid.appendChild(add);
+}
+
+function createPanelEl(p) {
+  const stem = stemMap.get(p.id);
+  const wrap = document.createElement('div');
+  wrap.className = 'viz-panel' + (stem ? ' has-stem' : '');
+  wrap.dataset.id = p.id;
+  wrap.id = 'panel-' + p.id;
+  wrap.draggable = true;
+
+  wrap.innerHTML = `
+    <div class="panel-header">
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
+      <div class="panel-band-label" style="color:${p.color}">${p.label}</div>
+      <div class="panel-freq">${p.band.freq}</div>
+      <div class="panel-actions">
+        <button class="panel-btn mute-btn${stem && stem.muted ? ' muted':''}" title="${stem && stem.muted ? 'Unmute':'Mute'}" style="${!stem?'display:none':''}">🔇</button>
+        <button class="panel-btn duplicate-btn" title="Duplicate panel">⧉</button>
+        <button class="panel-btn toggle-settings-btn${p.settingsOpen?' active':''}" title="Settings">⚙</button>
+        <button class="panel-btn toggle-fs-btn" title="Fullscreen">⛶</button>
+        <button class="panel-btn remove-btn" title="Remove" style="border-color:#333;color:#555">✕</button>
+      </div>
+    </div>
+    <div class="stem-slot">
+      <span class="stem-sync-dot" title="Stem status"></span>
+      <span class="stem-slot-label">STEM</span>
+      <span class="stem-filename">${stem ? stem.fileName : 'No stem loaded — using full mix'}</span>
+      <label class="stem-load-btn">
+        ${stem ? '↺ CHANGE' : '+ LOAD STEM'}
+        <input type="file" class="stem-file-inp" accept="audio/*">
+      </label>
+      <button class="stem-clear-btn" title="Remove stem" style="${!stem?'display:none':''}">✕</button>
+    </div>
+    <div class="panel-canvas-wrap">
+      <canvas class="panel-canvas" width="600" height="180"></canvas>
+      <div class="panel-idle-overlay">
+        <div class="idle-bars">
+          <div class="idle-bar"></div><div class="idle-bar"></div><div class="idle-bar"></div>
+          <div class="idle-bar"></div><div class="idle-bar"></div><div class="idle-bar"></div>
+          <div class="idle-bar"></div>
+        </div>
+        <span class="idle-text">WAITING FOR AUDIO</span>
+      </div>
+      <div class="panel-level-bar"><div class="panel-level-fill" style="background:${p.color};width:0%"></div></div>
+    </div>
+    <div class="panel-settings${p.settingsOpen?' open':''}">
+      <div class="setting-row">
+        <span class="setting-label">VIZ TYPE</span>
+        <select class="viz-type-sel">${VIZ_TYPES.map(t=>`<option${t===p.vizType?' selected':''}>${t}</option>`).join('')}</select>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">COLOR 1</span>
+        <input type="color" class="color1-inp" value="${p.color}">
+        <span class="setting-label" style="width:60px">COLOR 2</span>
+        <input type="color" class="color2-inp" value="${p.color2||'#000000'}">
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">SENSITIVITY</span>
+        <input type="range" class="sens-inp" min="0.2" max="3" step="0.05" value="${p.sensitivity}">
+        <span class="setting-value sens-val">${p.sensitivity.toFixed(1)}</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">LABEL</span>
+        <input type="text" class="label-inp" value="${p.label}" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;">
+      </div>
+    </div>
+  `;
+
+  // Events
+  wrap.querySelector('.duplicate-btn').addEventListener('click', () => {
+    const id = ++panelId;
+    const clone = Object.assign({}, p, { id, settingsOpen: false, fullscreen: false, particles: [] });
+    const idx = panels.findIndex(x => x.id === p.id);
+    panels.splice(idx + 1, 0, clone);
+    renderPanelsGrid();
+  });
+
+  wrap.querySelector('.remove-btn').addEventListener('click', () => removePanel(p.id));
+
+  wrap.querySelector('.toggle-settings-btn').addEventListener('click', () => {
+    p.settingsOpen = !p.settingsOpen;
+    wrap.querySelector('.panel-settings').classList.toggle('open', p.settingsOpen);
+    wrap.querySelector('.toggle-settings-btn').classList.toggle('active', p.settingsOpen);
+  });
+
+  wrap.querySelector('.toggle-fs-btn').addEventListener('click', () => toggleFullscreen(p.id));
+
+  wrap.querySelector('.viz-type-sel').addEventListener('change', e => { p.vizType = e.target.value; p.particles = []; });
+  wrap.querySelector('.color1-inp').addEventListener('input', e => {
+    p.color = e.target.value;
+    wrap.querySelector('.panel-band-label').style.color = p.color;
+    wrap.querySelector('.panel-level-fill').style.background = p.color;
+  });
+  wrap.querySelector('.color2-inp').addEventListener('input', e => { p.color2 = e.target.value; });
+  const sensInp = wrap.querySelector('.sens-inp');
+  const sensVal = wrap.querySelector('.sens-val');
+  sensInp.addEventListener('input', e => { p.sensitivity = parseFloat(e.target.value); sensVal.textContent = p.sensitivity.toFixed(1); });
+  wrap.querySelector('.label-inp').addEventListener('input', e => {
+    p.label = e.target.value;
+    wrap.querySelector('.panel-band-label').textContent = e.target.value;
+  });
+
+  // STEM LOAD
+  wrap.querySelector('.stem-file-inp').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    ensureAudioCtx();
+    if (masterAudioCtx.state === 'suspended') masterAudioCtx.resume();
+    createStemAudio(p.id, f);
+    ensurePlayerBarVisible();
+    updateModeBadge();
+    // re-render this panel to update UI
+    renderPanelsGrid();
+    e.target.value = '';
+  });
+
+  // STEM CLEAR
+  wrap.querySelector('.stem-clear-btn').addEventListener('click', () => {
+    removeStemAudio(p.id);
+    updateModeBadge();
+    renderPanelsGrid();
+  });
+
+  // MUTE
+  wrap.querySelector('.mute-btn').addEventListener('click', () => {
+    const s = stemMap.get(p.id);
+    if (!s) return;
+    s.muted = !s.muted;
+    s.gainNode.gain.value = s.muted ? 0 : parseFloat(volSlider.value);
+    wrap.querySelector('.mute-btn').classList.toggle('muted', s.muted);
+    wrap.querySelector('.mute-btn').title = s.muted ? 'Unmute' : 'Mute';
+  });
+
+  // prevent button clicks from triggering drag
+  wrap.querySelectorAll('.panel-btn, select, input, label, .stem-load-btn, .stem-clear-btn').forEach(el => {
+    el.addEventListener('mousedown', e => e.stopPropagation());
+  });
+
+  // DRAG TO REORDER
+  wrap.addEventListener('dragstart', e => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(p.id));
+    setTimeout(() => wrap.classList.add('dragging'), 0);
+  });
+  wrap.addEventListener('dragend', () => {
+    wrap.classList.remove('dragging');
+    document.querySelectorAll('.viz-panel').forEach(el => el.classList.remove('drag-over'));
+  });
+  wrap.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('.viz-panel').forEach(el => el.classList.remove('drag-over'));
+    if (!wrap.classList.contains('dragging')) wrap.classList.add('drag-over');
+  });
+  wrap.addEventListener('dragleave', () => wrap.classList.remove('drag-over'));
+  wrap.addEventListener('drop', e => {
+    e.preventDefault();
+    wrap.classList.remove('drag-over');
+    const fromId = parseInt(e.dataTransfer.getData('text/plain'));
+    const toId = p.id;
+    if (fromId === toId) return;
+    const fromIdx = panels.findIndex(x => x.id === fromId);
+    const toIdx   = panels.findIndex(x => x.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = panels.splice(fromIdx, 1);
+    panels.splice(toIdx, 0, moved);
+    renderPanelsGrid();
+  });
+
+  return wrap;
+}
+
+function toggleFullscreen(id) {
+  const p = panels.find(x => x.id === id);
+  if (!p) return;
+  p.fullscreen = !p.fullscreen;
+  const el = document.getElementById('panel-' + id);
+  el.classList.toggle('fullscreen-panel', p.fullscreen);
+  document.body.style.overflow = p.fullscreen ? 'hidden' : '';
+  const existing = document.getElementById('fs-exit');
+  if (existing) existing.remove();
+  if (p.fullscreen) {
+    const btn = document.createElement('button');
+    btn.className = 'btn'; btn.id = 'fs-exit';
+    btn.textContent = '✕ EXIT';
+    btn.style.cssText = 'position:fixed;top:20px;right:20px;z-index:210';
+    btn.addEventListener('click', () => toggleFullscreen(id));
+    document.body.appendChild(btn);
+  }
+}
+
+// ─── FREQ UTILS ───────────────────────────────────────────────────────────────
+function freqToIndex(analyserNode, freq) {
+  if (!analyserNode || !masterAudioCtx) return 0;
+  const nyquist = masterAudioCtx.sampleRate / 2;
+  return Math.round(freq / nyquist * analyserNode.frequencyBinCount);
+}
+
+function getBandEnergy(freqData, analyserNode, fLow, fHigh) {
+  if (!freqData) return 0;
+  const lo = freqToIndex(analyserNode, fLow);
+  const hi = freqToIndex(analyserNode, fHigh);
+  let sum = 0;
+  for (let i = lo; i <= hi; i++) sum += freqData[i];
+  return sum / ((hi - lo + 1) * 255);
+}
+
+// ─── DRAW ─────────────────────────────────────────────────────────────────────
+function drawPanel(p) {
+  const el = document.getElementById('panel-' + p.id);
+  if (!el) return;
+  const canvas = el.querySelector('canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 320, H = canvas.offsetHeight || 180;
+  canvas.width = W; canvas.height = H;
+
+  // Choose data source: stem if assigned, else master
+  const stem = stemMap.get(p.id);
+  const useAnalyser = stem ? stem.analyser : masterAnalyser;
+  const useFreqData = stem ? stem.freqData : masterFreqData;
+  const useTimeData = stem ? stem.timeData : masterTimeData;
+
+  if (useAnalyser && useFreqData) {
+    useAnalyser.getByteFrequencyData(useFreqData);
+    useAnalyser.getByteTimeDomainData(useTimeData || new Uint8Array(useAnalyser.fftSize));
+  }
+
+  const energy = useFreqData ? getBandEnergy(useFreqData, useAnalyser, p.band.fLow, p.band.fHigh) * p.sensitivity : 0;
+  const clampedEnergy = Math.min(energy, 1);
+
+  // ── IDLE OVERLAY ──
+  const idleOverlay = el.querySelector('.panel-idle-overlay');
+  const hasAudio = (hasMasterTrack || stemMap.size > 0);
+  if (idleOverlay) idleOverlay.classList.toggle('hidden', hasAudio);
+
+  // ── SYNC DOT ──
+  const syncDot = el.querySelector('.stem-sync-dot');
+  if (syncDot) {
+    if (stem) {
+      syncDot.classList.toggle('live', isPlaying);
+      syncDot.classList.toggle('paused', !isPlaying);
+      syncDot.title = isPlaying ? 'Stem live' : 'Stem paused';
+    } else {
+      syncDot.className = 'stem-sync-dot';
+      syncDot.title = 'No stem loaded';
+    }
+  }
+
+  const lf = el.querySelector('.panel-level-fill');
+  if (lf) lf.style.width = (clampedEnergy * 100) + '%';
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!useFreqData) return;
+
+  const lo = freqToIndex(useAnalyser, p.band.fLow);
+  const hi = freqToIndex(useAnalyser, p.band.fHigh);
+  const slicedFreq = useFreqData.slice(lo, hi + 1);
+  const tData = useTimeData || new Uint8Array(FFT);
+  const col1 = p.color || '#e8ff00';
+  const col2 = p.color2 || '#000000';
+
+  switch (p.vizType) {
+    case 'BARS':          drawBars(ctx, W, H, slicedFreq, col1, col2, p.sensitivity); break;
+    case 'WAVE':          drawWave(ctx, W, H, tData, col1, p.sensitivity); break;
+    case 'CIRCLE':        drawCircle(ctx, W, H, slicedFreq, col1, clampedEnergy); break;
+    case 'MIRROR BARS':   drawMirrorBars(ctx, W, H, slicedFreq, col1, col2, p.sensitivity); break;
+    case 'PARTICLES':     drawParticles(ctx, W, H, p, clampedEnergy, col1); break;
+    case 'OSCILLOSCOPE':  drawOscilloscope(ctx, W, H, tData, col1); break;
+    case 'SPECTRUM FILL': drawSpectrumFill(ctx, W, H, slicedFreq, col1, col2, p.sensitivity); break;
+    case 'RADIAL BARS':   drawRadialBars(ctx, W, H, slicedFreq, col1, clampedEnergy); break;
+  }
+}
+
+function drawBars(ctx, W, H, data, col1, col2, sens) {
+  const n = Math.min(data.length, 64);
+  const bw = W / n;
+  for (let i = 0; i < n; i++) {
+    const v = (data[Math.floor(i * data.length / n)] / 255) * sens;
+    const h = Math.min(v * H, H);
+    const grad = ctx.createLinearGradient(0, H, 0, H - h);
+    grad.addColorStop(0, col1);
+    grad.addColorStop(1, col2 === '#000000' ? col1 + '22' : col2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(i * bw + 1, H - h, bw - 2, h);
+  }
+}
+
+function drawMirrorBars(ctx, W, H, data, col1, col2, sens) {
+  const n = Math.min(data.length, 64);
+  const bw = W / n;
+  const mid = H / 2;
+  for (let i = 0; i < n; i++) {
+    const v = (data[Math.floor(i * data.length / n)] / 255) * sens;
+    const h = Math.min(v * mid, mid);
+    const grad = ctx.createLinearGradient(0, mid, 0, mid - h);
+    grad.addColorStop(0, col1);
+    grad.addColorStop(1, col2 === '#000000' ? col1 + '33' : col2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(i * bw + 1, mid - h, bw - 2, h);
+    ctx.fillRect(i * bw + 1, mid, bw - 2, h);
+  }
+}
+
+function drawWave(ctx, W, H, data, col, sens) {
+  ctx.beginPath();
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = col;
+  for (let i = 0; i < W; i++) {
+    const idx = Math.floor(i / W * data.length);
+    const v = (data[idx] / 128 - 1) * sens;
+    const y = H / 2 + v * H / 2;
+    i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function drawOscilloscope(ctx, W, H, data, col) {
+  ctx.beginPath();
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.5;
+  const step = Math.max(1, Math.floor(data.length / W));
+  for (let i = 0; i < W; i++) {
+    const v = data[i * step] / 128 - 1;
+    const y = H / 2 + v * H * 0.45;
+    i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y);
+  }
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.strokeStyle = col + '22';
+  ctx.lineWidth = 1;
+  ctx.moveTo(0, H/2); ctx.lineTo(W, H/2);
+  ctx.stroke();
+}
+
+function drawCircle(ctx, W, H, data, col, energy) {
+  const cx = W/2, cy = H/2;
+  const baseR = Math.min(W, H) * 0.25;
+  const n = Math.min(data.length, 128);
+  ctx.beginPath();
+  for (let i = 0; i <= n; i++) {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const v = data[Math.floor(i * data.length / n)] / 255;
+    const r = baseR + v * baseR * 0.8;
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.shadowBlur = 12 + energy * 20;
+  ctx.shadowColor = col;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.beginPath();
+  ctx.arc(cx, cy, baseR * 0.4, 0, Math.PI * 2);
+  ctx.strokeStyle = col + '44';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawRadialBars(ctx, W, H, data, col, energy) {
+  const cx = W/2, cy = H/2;
+  const R = Math.min(W, H) * 0.18;
+  const n = Math.min(data.length, 80);
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const v = data[Math.floor(i * data.length / n)] / 255;
+    const len = v * Math.min(W,H) * 0.3;
+    const x1 = cx + Math.cos(angle) * R, y1 = cy + Math.sin(angle) * R;
+    const x2 = cx + Math.cos(angle) * (R + len), y2 = cy + Math.sin(angle) * (R + len);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.5 + v * 0.5;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawSpectrumFill(ctx, W, H, data, col1, col2, sens) {
+  const n = data.length;
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  for (let i = 0; i < W; i++) {
+    const v = (data[Math.floor(i * n / W)] / 255) * sens;
+    const y = H - Math.min(v * H, H);
+    i === 0 ? ctx.lineTo(0, y) : ctx.lineTo(i, y);
+  }
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, col1);
+  grad.addColorStop(1, col2 === '#000000' ? col1 + '11' : col2 + '44');
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.beginPath();
+  for (let i = 0; i < W; i++) {
+    const v = (data[Math.floor(i * n / W)] / 255) * sens;
+    const y = H - Math.min(v * H, H);
+    i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i, y);
+  }
+  ctx.strokeStyle = col1;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawParticles(ctx, W, H, p, energy, col) {
+  if (!p.particles) p.particles = [];
+  if (energy > 0.1) {
+    const count = Math.floor(energy * 6);
+    for (let i = 0; i < count; i++) {
+      p.particles.push({ x: Math.random()*W, y: H, vx: (Math.random()-0.5)*3, vy: -(Math.random()*4+2)*energy, life: 1, size: Math.random()*4+2 });
+    }
+  }
+  p.particles = p.particles.filter(pt => pt.life > 0);
+  p.particles.forEach(pt => {
+    pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.05; pt.life -= 0.02;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, pt.size * pt.life, 0, Math.PI*2);
+    ctx.fillStyle = col + Math.floor(pt.life*255).toString(16).padStart(2,'0');
+    ctx.fill();
+  });
+}
+
+// ─── MAIN LOOP ────────────────────────────────────────────────────────────────
+function startLoop() {
+  cancelAnimationFrame(animFrameId);
+  function loop() {
+    animFrameId = requestAnimationFrame(loop);
+    if (masterAnalyser && masterFreqData) {
+      masterAnalyser.getByteFrequencyData(masterFreqData);
+      masterAnalyser.getByteTimeDomainData(masterTimeData);
+    }
+    updateProgress();
+    panels.forEach(drawPanel);
+  }
+  loop();
+}
+
+startLoop();
+
+// ─── DEFAULT PANELS ───────────────────────────────────────────────────────────
+['bass','mid','high'].forEach(id => addPanel(BANDS.find(x=>x.id===id)));
+panels[0].vizType = 'CIRCLE';
+panels[1].vizType = 'BARS';
+panels[2].vizType = 'WAVE';
+renderPanelsGrid();
+</script>
+</body>
+</html>
