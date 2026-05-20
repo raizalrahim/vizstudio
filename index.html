@@ -133,6 +133,12 @@
   .band-info span { font-size: 11px; color: var(--text-dim); }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
+  /* BACKGROUND IMAGE */
+  .panel-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.35; pointer-events: none; display: none; border-radius: 0; }
+  .panel-bg-img.visible { display: block; }
+  .bg-fit-sel { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-family: 'Space Mono', monospace; font-size: 10px; cursor: pointer; }
+  .bg-opacity-val { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); width: 28px; text-align: right; }
+
   /* IDLE CANVAS STATE */
   .panel-idle-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; pointer-events: none; opacity: 1; transition: opacity 0.4s; }
   .panel-idle-overlay.hidden { opacity: 0; }
@@ -669,7 +675,7 @@ function closeModal() { document.getElementById('add-modal').classList.remove('o
 // ─── PANEL MANAGEMENT ─────────────────────────────────────────────────────────
 function addPanel(band) {
   const id = ++panelId;
-  panels.push({ id, band, vizType: VIZ_TYPES[0], color: band.color, color2: '#000000', sensitivity: 1.2, settingsOpen: false, fullscreen: false, label: band.label, particles: [] });
+  panels.push({ id, band, vizType: VIZ_TYPES[0], color: band.color, color2: '#000000', sensitivity: 1.2, settingsOpen: false, fullscreen: false, label: band.label, particles: [], bgImage: null, bgOpacity: 0.35, bgFit: 'cover' });
   renderPanelsGrid();
 }
 
@@ -723,6 +729,7 @@ function createPanelEl(p) {
       <button class="stem-clear-btn" title="Remove stem" style="${!stem?'display:none':''}">✕</button>
     </div>
     <div class="panel-canvas-wrap">
+      <img class="panel-bg-img" alt="">
       <canvas class="panel-canvas" width="600" height="180"></canvas>
       <div class="panel-idle-overlay">
         <div class="idle-bars">
@@ -754,6 +761,28 @@ function createPanelEl(p) {
         <span class="setting-label">LABEL</span>
         <input type="text" class="label-inp" value="${p.label}" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;">
       </div>
+      <div class="setting-row" style="border-top:1px solid var(--border);padding-top:10px;margin-top:2px;">
+        <span class="setting-label">BG IMAGE</span>
+        <label class="stem-load-btn bg-load-btn" style="border-style:dashed;">
+          ${p.bgImage ? '↺ CHANGE' : '+ LOAD IMAGE'}
+          <input type="file" class="bg-file-inp" accept="image/jpeg,image/png,image/webp">
+        </label>
+        <button class="stem-clear-btn bg-clear-btn" title="Remove background" style="${!p.bgImage?'display:none':''}">✕</button>
+      </div>
+      ${p.bgImage ? `
+      <div class="setting-row">
+        <span class="setting-label">BG OPACITY</span>
+        <input type="range" class="bg-opacity-inp" min="0.05" max="0.9" step="0.05" value="${p.bgOpacity||0.35}">
+        <span class="bg-opacity-val">${Math.round((p.bgOpacity||0.35)*100)}%</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">BG FIT</span>
+        <select class="bg-fit-sel">
+          <option${(p.bgFit||'cover')==='cover'?' selected':''}>cover</option>
+          <option${(p.bgFit||'cover')==='contain'?' selected':''}>contain</option>
+          <option${(p.bgFit||'cover')==='fill'?' selected':''}>fill</option>
+        </select>
+      </div>` : ''}
     </div>
   `;
 
@@ -790,6 +819,72 @@ function createPanelEl(p) {
     p.label = e.target.value;
     wrap.querySelector('.panel-band-label').textContent = e.target.value;
   });
+
+  // BG IMAGE LOAD
+  wrap.querySelector('.bg-file-inp').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      p.bgImage    = ev.target.result;
+      p.bgOpacity  = p.bgOpacity  || 0.35;
+      p.bgFit      = p.bgFit      || 'cover';
+      // apply immediately without full re-render
+      const img = wrap.querySelector('.panel-bg-img');
+      img.src = p.bgImage;
+      img.style.objectFit = p.bgFit;
+      img.style.opacity   = p.bgOpacity;
+      img.classList.add('visible');
+      // re-render settings drawer only to show opacity/fit controls
+      renderPanelsGrid();
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  });
+
+  // BG IMAGE CLEAR
+  const bgClearBtn = wrap.querySelector('.bg-clear-btn');
+  if (bgClearBtn) {
+    bgClearBtn.addEventListener('click', () => {
+      p.bgImage   = null;
+      p.bgOpacity = 0.35;
+      p.bgFit     = 'cover';
+      renderPanelsGrid();
+    });
+  }
+
+  // BG OPACITY
+  const bgOpacityInp = wrap.querySelector('.bg-opacity-inp');
+  if (bgOpacityInp) {
+    bgOpacityInp.addEventListener('input', e => {
+      p.bgOpacity = parseFloat(e.target.value);
+      const img = wrap.querySelector('.panel-bg-img');
+      if (img) img.style.opacity = p.bgOpacity;
+      const val = wrap.querySelector('.bg-opacity-val');
+      if (val) val.textContent = Math.round(p.bgOpacity * 100) + '%';
+    });
+  }
+
+  // BG FIT
+  const bgFitSel = wrap.querySelector('.bg-fit-sel');
+  if (bgFitSel) {
+    bgFitSel.addEventListener('change', e => {
+      p.bgFit = e.target.value;
+      const img = wrap.querySelector('.panel-bg-img');
+      if (img) img.style.objectFit = p.bgFit;
+    });
+  }
+
+  // Apply saved bg image on render
+  if (p.bgImage) {
+    const img = wrap.querySelector('.panel-bg-img');
+    if (img) {
+      img.src = p.bgImage;
+      img.style.objectFit = p.bgFit || 'cover';
+      img.style.opacity   = p.bgOpacity || 0.35;
+      img.classList.add('visible');
+    }
+  }
 
   // STEM LOAD
   wrap.querySelector('.stem-file-inp').addEventListener('change', e => {
@@ -942,7 +1037,8 @@ function drawPanel(p) {
   if (lf) lf.style.width = (clampedEnergy * 100) + '%';
 
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#0a0a0a';
+  // use semi-transparent fill when bg image is set so image shows through
+  ctx.fillStyle = p.bgImage ? 'rgba(10,10,10,0.55)' : '#0a0a0a';
   ctx.fillRect(0, 0, W, H);
 
   if (!useFreqData) return;
