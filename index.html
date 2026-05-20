@@ -154,6 +154,11 @@
   .stem-sync-dot.paused { background: #ff8c00; box-shadow: none; animation: none; }
   @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
+  /* TOAST */
+  #toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 0.2s, transform 0.2s; z-index: 400; white-space: nowrap; pointer-events: none; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.error { border-color: #ff4444; color: #ff4444; }
+
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -165,6 +170,11 @@
   <div class="logo">VIZSTUDIO <span>MUSIC VISUALIZER</span></div>
   <div class="header-controls">
     <span class="mode-badge" id="mode-badge">NO FILE</span>
+    <button class="btn" id="save-layout-btn">💾 SAVE LAYOUT</button>
+    <label class="btn" style="cursor:pointer;position:relative;">
+      📂 LOAD LAYOUT
+      <input type="file" id="load-layout-input" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+    </label>
     <button class="btn" id="toggle-upload-btn">HIDE UPLOAD</button>
     <button class="btn" id="add-panel-btn">+ ADD PANEL</button>
     <button class="btn" id="reset-btn">RESET</button>
@@ -223,8 +233,18 @@
 
 <!-- Main track audio (audible) -->
 <audio id="audio-el"></audio>
+<div id="toast"></div>
 
 <script>
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 2800);
+}
 // ─── BAND & VIZ DEFS ──────────────────────────────────────────────────────────
 const BANDS = [
   { id:'sub',   label:'SUB BASS',   freq:'20–60 Hz',    color:'#ff3cac', fLow:20,   fHigh:60    },
@@ -505,11 +525,105 @@ document.getElementById('reset-btn').addEventListener('click', () => {
 let uploadZoneHidden = false;
 document.getElementById('toggle-upload-btn').addEventListener('click', () => {
   const zone = document.getElementById('upload-zone');
-  // only allow hiding if player bar is not visible (no track loaded)
-  // if player bar is visible, upload zone is already hidden by loadFile — just toggle the btn label
   uploadZoneHidden = !uploadZoneHidden;
   zone.style.display = uploadZoneHidden ? 'none' : '';
   document.getElementById('toggle-upload-btn').textContent = uploadZoneHidden ? 'SHOW UPLOAD' : 'HIDE UPLOAD';
+});
+
+// ─── SAVE LAYOUT ──────────────────────────────────────────────────────────────
+document.getElementById('save-layout-btn').addEventListener('click', () => {
+  if (panels.length === 0) {
+    showToast('NO PANELS TO SAVE');
+    return;
+  }
+
+  const layout = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    panels: panels.map(p => ({
+      bandId:      p.band.id,
+      vizType:     p.vizType,
+      color:       p.color,
+      color2:      p.color2,
+      sensitivity: p.sensitivity,
+      label:       p.label,
+      // stem filename saved as a reminder only — file itself can't be saved
+      stemFileName: stemMap.get(p.id) ? stemMap.get(p.id).fileName : null,
+    })),
+  };
+
+  const blob = new Blob([JSON.stringify(layout, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'vizstudio-layout.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('LAYOUT SAVED');
+});
+
+// ─── LOAD LAYOUT ──────────────────────────────────────────────────────────────
+document.getElementById('load-layout-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const layout = JSON.parse(ev.target.result);
+
+      // Validate structure
+      if (!layout.version || !Array.isArray(layout.panels)) {
+        showToast('INVALID LAYOUT FILE', true); return;
+      }
+
+      // Clear existing panels (keep audio intact)
+      panels.forEach(p => { if (stemMap.has(p.id)) removeStemAudio(p.id); });
+      panels = [];
+      panelId = 0;
+
+      // Rebuild panels from saved data
+      const loadWarnings = [];
+      layout.panels.forEach(saved => {
+        const band = BANDS.find(b => b.id === saved.bandId);
+        if (!band) { loadWarnings.push(`Unknown band: ${saved.bandId}`); return; }
+
+        const id = ++panelId;
+        panels.push({
+          id,
+          band,
+          vizType:     VIZ_TYPES.includes(saved.vizType) ? saved.vizType : VIZ_TYPES[0],
+          color:       saved.color       || band.color,
+          color2:      saved.color2      || '#000000',
+          sensitivity: saved.sensitivity || 1.2,
+          label:       saved.label       || band.label,
+          settingsOpen: false,
+          fullscreen:   false,
+          particles:    [],
+          // remember stem filename as a hint for user to reload
+          stemHint:    saved.stemFileName || null,
+        });
+      });
+
+      renderPanelsGrid();
+
+      // Show stem reload reminders if any were saved
+      const stemsToReload = layout.panels.filter(p => p.stemFileName);
+      if (stemsToReload.length > 0) {
+        showToast(`LAYOUT LOADED · RELOAD ${stemsToReload.length} STEM${stemsToReload.length > 1 ? 'S' : ''}`);
+      } else {
+        showToast('LAYOUT LOADED');
+      }
+
+      if (loadWarnings.length > 0) console.warn('VIZSTUDIO load warnings:', loadWarnings);
+
+    } catch (err) {
+      showToast('COULD NOT READ FILE', true);
+      console.error('Layout load error:', err);
+    }
+  };
+  reader.readAsText(file);
 });
 
 // ─── MODE BADGE ───────────────────────────────────────────────────────────────
@@ -601,7 +715,7 @@ function createPanelEl(p) {
     <div class="stem-slot">
       <span class="stem-sync-dot" title="Stem status"></span>
       <span class="stem-slot-label">STEM</span>
-      <span class="stem-filename">${stem ? stem.fileName : 'No stem loaded — using full mix'}</span>
+      <span class="stem-filename">${stem ? stem.fileName : (p.stemHint ? '⚠ RELOAD: ' + p.stemHint : 'No stem loaded — using full mix')}</span>
       <label class="stem-load-btn">
         ${stem ? '↺ CHANGE' : '+ LOAD STEM'}
         <input type="file" class="stem-file-inp" accept="audio/*">
