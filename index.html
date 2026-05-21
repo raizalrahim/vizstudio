@@ -343,7 +343,7 @@ function showToast(msg, isError = false) {
 // ─── PRESENTATION MODE ────────────────────────────────────────────────────────
 function togglePresentation() {
   const active = document.body.classList.toggle('presentation');
-  updatePresentationGrid();
+  requestAnimationFrame(() => updatePresentationGrid());
   showToast(active ? 'PRESENTATION MODE · ESC TO EXIT' : 'PRESENTATION MODE OFF');
 }
 document.getElementById('presentation-btn').addEventListener('click', togglePresentation);
@@ -822,7 +822,8 @@ function renderPanelsGrid() {
   add.innerHTML = '<div class="plus">＋</div><span>ADD PANEL</span>';
   add.addEventListener('click', openAddModal);
   grid.appendChild(add);
-  updatePresentationGrid();
+  // defer so all panel elements are in DOM before applying spans
+  requestAnimationFrame(() => updatePresentationGrid());
 }
 
 function updatePresentationGrid() {
