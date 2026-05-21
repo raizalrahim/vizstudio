@@ -133,6 +133,77 @@
   .band-info span { font-size: 11px; color: var(--text-dim); }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
+  /* HELP MODAL */
+  #help-modal .modal {
+    width: 560px;
+    max-width: 95vw;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+  }
+  #help-modal .modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  #help-modal .modal-header h3 { margin-bottom: 0; }
+  #help-modal .modal-body {
+    overflow-y: auto;
+    padding: 20px 24px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .help-section h4 {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .help-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 7px;
+  }
+  .help-key {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--accent);
+    background: rgba(232,255,0,0.08);
+    border: 1px solid rgba(232,255,0,0.2);
+    border-radius: 4px;
+    padding: 2px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 110px;
+    text-align: center;
+  }
+  .help-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .help-divider { height: 1px; background: var(--border); }
+  .help-tip {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    background: var(--surface2);
+    border-left: 2px solid var(--accent);
+    padding: 8px 12px;
+    border-radius: 0 4px 4px 0;
+    line-height: 1.6;
+  }
+
   /* BACKGROUND IMAGE */
   .panel-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.35; pointer-events: none; display: none; border-radius: 0; }
   .panel-bg-img.visible { display: block; }
@@ -243,6 +314,8 @@
       <input type="file" id="load-layout-input" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
     </label>
     <div class="menu-divider"></div>
+    <button class="btn" id="help-btn">📖 HOW TO USE</button>
+    <div class="menu-divider"></div>
     <button class="btn" id="reset-btn" style="color:#ff6666;">↺ RESET</button>
   </div>
 </header>
@@ -288,6 +361,69 @@
   <div id="panels-grid"></div>
 </div>
 
+<!-- HELP MODAL -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--accent)">HOW TO USE</h3>
+      <button class="panel-btn" id="help-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="help-section">
+        <h4>Getting Started</h4>
+        <div class="help-row"><span class="help-key">DROP / BROWSE</span><span class="help-desc">Upload a music file (MP3, WAV, FLAC, OGG, M4A) into the upload zone to get started</span></div>
+        <div class="help-row"><span class="help-key">STEMS ONLY</span><span class="help-desc">Skip the upload zone — load stems directly into individual panels using each panel's STEM slot</span></div>
+        <div class="help-row"><span class="help-key">▶ PLAY</span><span class="help-desc">Plays all audio simultaneously — main track and all stems in sync</span></div>
+        <div class="help-row"><span class="help-key">⏏ CHANGE TRACK</span><span class="help-desc">Swap the main track without resetting your panel layout</span></div>
+        <div class="help-row"><span class="help-key">✕ CLEAR TRACK</span><span class="help-desc">Remove the main track — panels and stems stay intact</span></div>
+      </div>
+      <div class="help-divider"></div>
+      <div class="help-section">
+        <h4>Panel Controls</h4>
+        <div class="help-row"><span class="help-key">⠿ DRAG</span><span class="help-desc">Drag the handle to reorder panels</span></div>
+        <div class="help-row"><span class="help-key">⧉ DUPLICATE</span><span class="help-desc">Copy a panel with all its settings — stem not copied</span></div>
+        <div class="help-row"><span class="help-key">🔇 MUTE</span><span class="help-desc">Silence a stem's audio without removing it</span></div>
+        <div class="help-row"><span class="help-key">⚙ SETTINGS</span><span class="help-desc">Viz type, colors, sensitivity, label, background image</span></div>
+        <div class="help-row"><span class="help-key">⛶ FULLSCREEN</span><span class="help-desc">Expand one panel to fill the entire screen</span></div>
+        <div class="help-row"><span class="help-key">✕ REMOVE</span><span class="help-desc">Remove the panel and unload its stem</span></div>
+      </div>
+      <div class="help-divider"></div>
+      <div class="help-section">
+        <h4>Visualization Types</h4>
+        <div class="help-row"><span class="help-key">BARS</span><span class="help-desc">Frequency bar chart with gradient fill</span></div>
+        <div class="help-row"><span class="help-key">WAVE</span><span class="help-desc">Glowing time-domain waveform</span></div>
+        <div class="help-row"><span class="help-key">CIRCLE</span><span class="help-desc">Radial shape that pulses with energy</span></div>
+        <div class="help-row"><span class="help-key">MIRROR BARS</span><span class="help-desc">Bars mirrored above and below center</span></div>
+        <div class="help-row"><span class="help-key">PARTICLES</span><span class="help-desc">Energy-reactive particles that burst upward</span></div>
+        <div class="help-row"><span class="help-key">OSCILLOSCOPE</span><span class="help-desc">Raw audio signal trace</span></div>
+        <div class="help-row"><span class="help-key">SPECTRUM FILL</span><span class="help-desc">Filled frequency area with gradient</span></div>
+        <div class="help-row"><span class="help-key">RADIAL BARS</span><span class="help-desc">Bars radiating outward from center</span></div>
+      </div>
+      <div class="help-divider"></div>
+      <div class="help-section">
+        <h4>Stems</h4>
+        <div class="help-row"><span class="help-key">+ LOAD STEM</span><span class="help-desc">Assign a stem file to a panel — it visualizes only that stem's frequencies</span></div>
+        <div class="help-row"><span class="help-key">🟢 LIVE DOT</span><span class="help-desc">Green pulsing = playing · Orange = paused · Dark = no stem</span></div>
+        <div class="help-tip">💡 Use LALAL.AI, Moises.app, or Audiostrip to split your song into stems — then load each into its own panel for accurate per-instrument visuals</div>
+      </div>
+      <div class="help-divider"></div>
+      <div class="help-section">
+        <h4>Presentation Mode</h4>
+        <div class="help-row"><span class="help-key">⛶ PRESENT</span><span class="help-desc">Hides all UI — panels fill the screen with pure visualizations</span></div>
+        <div class="help-row"><span class="help-key">ESC</span><span class="help-desc">Exit presentation mode</span></div>
+        <div class="help-tip">💡 Start playing your music before entering presentation mode — controls are hidden inside it</div>
+      </div>
+      <div class="help-divider"></div>
+      <div class="help-section">
+        <h4>Save & Load Layout</h4>
+        <div class="help-row"><span class="help-key">💾 SAVE LAYOUT</span><span class="help-desc">Exports panel config as JSON — band, viz type, colors, sensitivity, labels saved</span></div>
+        <div class="help-row"><span class="help-key">📂 LOAD LAYOUT</span><span class="help-desc">Rebuilds panels from a saved JSON — audio files must be reloaded manually</span></div>
+        <div class="help-tip">💡 Audio files and background images are not saved — browsers block local file access between sessions for security reasons</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="add-modal">
   <div class="modal">
     <h3>ADD PANEL</h3>
@@ -328,6 +464,18 @@ menuDropdown.querySelectorAll('.btn').forEach(btn => {
     menuDropdown.classList.remove('open');
     menuBtn.classList.remove('active');
   });
+});
+
+// ─── HELP MODAL ───────────────────────────────────────────────────────────────
+document.getElementById('help-btn').addEventListener('click', () => {
+  document.getElementById('help-modal').classList.add('open');
+});
+document.getElementById('help-close').addEventListener('click', () => {
+  document.getElementById('help-modal').classList.remove('open');
+});
+document.getElementById('help-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('help-modal'))
+    document.getElementById('help-modal').classList.remove('open');
 });
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
