@@ -265,6 +265,7 @@
       ⏏ CHANGE TRACK
       <input type="file" id="change-file-input" accept="audio/mpeg,audio/wav,audio/flac,audio/ogg,audio/mp4,audio/aac,audio/x-m4a,audio/webm,.mp3,.wav,.flac,.ogg,.m4a,.aac" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
     </label>
+    <button class="btn" id="clear-track-btn" title="Remove main track" style="color:#ff6666;">✕ CLEAR TRACK</button>
   </div>
   <div class="progress-wrap">
     <span class="time-label" id="time-current">0:00</span>
@@ -603,6 +604,31 @@ function loadFile(file) {
 
 document.getElementById('file-input').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); });
 document.getElementById('change-file-input').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); e.target.value=''; });
+
+// ─── CLEAR MAIN TRACK ─────────────────────────────────────────────────────────
+document.getElementById('clear-track-btn').addEventListener('click', () => {
+  if (isPlaying) { audioEl.pause(); setPlaying(false); }
+  audioEl.src = '';
+  hasMasterTrack = false;
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('time-current').textContent = '0:00';
+  document.getElementById('time-total').textContent = '0:00';
+  // if stems exist keep player bar visible in stems-only mode
+  if (stemMap.size > 0) {
+    document.getElementById('track-name').textContent = 'STEMS ONLY';
+    document.getElementById('track-meta').textContent = 'PLAYING FROM STEM FILES';
+  } else {
+    // no stems either — hide player bar and show upload zone
+    document.getElementById('player-bar').classList.remove('visible');
+    document.getElementById('upload-zone').style.display = '';
+    uploadZoneHidden = false;
+    document.getElementById('toggle-upload-btn').textContent = 'HIDE UPLOAD';
+  }
+  // re-route stems to audible now that master is gone
+  routeStemAudio();
+  updateModeBadge();
+  showToast('TRACK CLEARED');
+});
 
 const uploadZone = document.getElementById('upload-zone');
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
