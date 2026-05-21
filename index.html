@@ -826,11 +826,14 @@ function renderPanelsGrid() {
   requestAnimationFrame(() => updatePresentationGrid());
 }
 
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+function lcm(a, b) { return (a * b) / gcd(a, b); }
+
 function updatePresentationGrid() {
   const grid = document.getElementById('panels-grid');
   const count = panels.length;
 
-  // Reset all panel spans first
+  // Reset all panel spans
   document.querySelectorAll('.viz-panel').forEach(el => {
     el.style.gridColumn = '';
     el.style.gridRow = '';
@@ -857,25 +860,29 @@ function updatePresentationGrid() {
   const rows = Math.ceil(count / cols);
   const lastRowCount = count % cols === 0 ? cols : count % cols;
 
-  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  if (lastRowCount === cols || lastRowCount === 0) {
+    // Perfect grid — no spanning needed
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    return;
+  }
+
+  // Use LCM of cols and lastRowCount so both rows divide evenly
+  const totalCols = lcm(cols, lastRowCount);
+  const topSpan  = totalCols / cols;           // span per panel in full rows
+  const lastSpan = totalCols / lastRowCount;   // span per panel in last row
+
+  grid.style.gridTemplateColumns = `repeat(${totalCols}, 1fr)`;
   grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
 
-  // Span last-row panels only when they don't fill the row
-  if (lastRowCount !== cols) {
-    const panelEls = Array.from(document.querySelectorAll('.viz-panel'));
-    const lastRowPanels = panelEls.slice(count - lastRowCount, count);
-
-    // Each last-row panel spans: total cols / number of panels in last row
-    // Use integer spans only — find the closest whole divisor
-    let span = Math.floor(cols / lastRowCount);
-    const remainder = cols % lastRowCount;
-
-    lastRowPanels.forEach((el, i) => {
-      // distribute remainder columns to first panels in the row
-      const extraSpan = i < remainder ? 1 : 0;
-      el.style.gridColumn = `span ${span + extraSpan}`;
-    });
-  }
+  const panelEls = Array.from(document.querySelectorAll('.viz-panel'));
+  panelEls.forEach((el, idx) => {
+    if (idx >= count - lastRowCount) {
+      el.style.gridColumn = `span ${lastSpan}`;
+    } else {
+      el.style.gridColumn = `span ${topSpan}`;
+    }
+  });
 }
 
 function createPanelEl(p) {
