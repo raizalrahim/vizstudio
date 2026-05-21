@@ -160,6 +160,34 @@
   .stem-sync-dot.paused { background: #ff8c00; box-shadow: none; animation: none; }
   @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
+  /* PRESENTATION MODE */
+  body.presentation header { display: none; }
+  body.presentation #upload-zone { display: none !important; }
+  body.presentation #player-bar { display: none !important; }
+  body.presentation #panels-section { padding: 0; }
+  body.presentation .section-header { display: none; }
+  body.presentation .panel-header { display: none; }
+  body.presentation .stem-slot { display: none; }
+  body.presentation .panel-settings { display: none !important; }
+  body.presentation .add-panel-card { display: none; }
+  body.presentation .viz-panel { border: none; border-radius: 0; }
+  body.presentation .viz-panel:hover { border: none; }
+  body.presentation .panel-canvas { height: 260px; }
+  body.presentation #panels-grid { gap: 2px; }
+  body.presentation .panel-level-bar { display: none; }
+
+  #presentation-exit {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 500;
+    display: none;
+    opacity: 0.3;
+    transition: opacity 0.2s;
+  }
+  #presentation-exit:hover { opacity: 1; }
+  body.presentation #presentation-exit { display: inline-flex; }
+
   /* TOAST */
   #toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 0.2s, transform 0.2s; z-index: 400; white-space: nowrap; pointer-events: none; }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -183,6 +211,7 @@
     </label>
     <button class="btn" id="toggle-upload-btn">HIDE UPLOAD</button>
     <button class="btn" id="add-panel-btn">+ ADD PANEL</button>
+    <button class="btn" id="presentation-btn">⛶ PRESENT</button>
     <button class="btn" id="reset-btn">RESET</button>
   </div>
 </header>
@@ -240,6 +269,7 @@
 <!-- Main track audio (audible) -->
 <audio id="audio-el"></audio>
 <div id="toast"></div>
+<button class="btn" id="presentation-exit">✕ EXIT PRESENTATION</button>
 
 <script>
 // ─── TOAST ────────────────────────────────────────────────────────────────────
@@ -251,6 +281,19 @@ function showToast(msg, isError = false) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.className = ''; }, 2800);
 }
+
+// ─── PRESENTATION MODE ────────────────────────────────────────────────────────
+function togglePresentation() {
+  const active = document.body.classList.toggle('presentation');
+  showToast(active ? 'PRESENTATION MODE · ESC TO EXIT' : 'PRESENTATION MODE OFF');
+}
+document.getElementById('presentation-btn').addEventListener('click', togglePresentation);
+document.getElementById('presentation-exit').addEventListener('click', togglePresentation);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('presentation')) {
+    togglePresentation();
+  }
+});
 // ─── BAND & VIZ DEFS ──────────────────────────────────────────────────────────
 const BANDS = [
   { id:'sub',   label:'SUB BASS',   freq:'20–60 Hz',    color:'#ff3cac', fLow:20,   fHigh:60    },
