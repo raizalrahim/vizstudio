@@ -828,20 +828,42 @@ function renderPanelsGrid() {
 function updatePresentationGrid() {
   const grid = document.getElementById('panels-grid');
   const count = panels.length;
-  if (count === 0) { grid.style.gridTemplateRows = ''; return; }
 
-  // Calculate rows and columns to fill screen evenly
-  const cols = Math.ceil(Math.sqrt(count));
-  const rows = Math.ceil(count / cols);
-  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-  grid.style.gridTemplateRows = document.body.classList.contains('presentation')
-    ? `repeat(${rows}, 1fr)`
-    : '';
+  // Reset all panel spans first
+  document.querySelectorAll('.viz-panel').forEach(el => el.style.gridColumn = '');
 
-  // Reset to auto-fill in normal mode
-  if (!document.body.classList.contains('presentation')) {
+  if (count === 0) {
     grid.style.gridTemplateColumns = '';
     grid.style.gridTemplateRows = '';
+    return;
+  }
+
+  const isPresentation = document.body.classList.contains('presentation');
+
+  if (!isPresentation) {
+    grid.style.gridTemplateColumns = '';
+    grid.style.gridTemplateRows = '';
+    return;
+  }
+
+  // Calculate balanced grid dimensions
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  const lastRowCount = count % cols === 0 ? cols : count % cols;
+  const lastRowStart = count - lastRowCount + 1;
+
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+  // Span last-row panels to fill remaining width evenly
+  if (lastRowCount !== cols) {
+    const spanWidth = cols / lastRowCount;
+    const panelEls = document.querySelectorAll('.viz-panel');
+    panelEls.forEach((el, idx) => {
+      if (idx >= count - lastRowCount) {
+        el.style.gridColumn = `span ${spanWidth}`;
+      }
+    });
   }
 }
 
