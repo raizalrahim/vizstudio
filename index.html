@@ -831,7 +831,10 @@ function updatePresentationGrid() {
   const count = panels.length;
 
   // Reset all panel spans first
-  document.querySelectorAll('.viz-panel').forEach(el => el.style.gridColumn = '');
+  document.querySelectorAll('.viz-panel').forEach(el => {
+    el.style.gridColumn = '';
+    el.style.gridRow = '';
+  });
 
   if (count === 0) {
     grid.style.gridTemplateColumns = '';
@@ -840,30 +843,37 @@ function updatePresentationGrid() {
   }
 
   const isPresentation = document.body.classList.contains('presentation');
-
   if (!isPresentation) {
     grid.style.gridTemplateColumns = '';
     grid.style.gridTemplateRows = '';
     return;
   }
 
-  // Calculate balanced grid dimensions
-  const cols = Math.ceil(Math.sqrt(count));
+  // Cap columns based on screen width
+  const screenW = window.innerWidth;
+  const maxCols = screenW <= 900 ? 2 : screenW <= 1200 ? 3 : 4;
+
+  const cols = Math.min(Math.ceil(Math.sqrt(count)), maxCols);
   const rows = Math.ceil(count / cols);
   const lastRowCount = count % cols === 0 ? cols : count % cols;
-  const lastRowStart = count - lastRowCount + 1;
 
   grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
   grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
 
-  // Span last-row panels to fill remaining width evenly
+  // Span last-row panels only when they don't fill the row
   if (lastRowCount !== cols) {
-    const spanWidth = cols / lastRowCount;
-    const panelEls = document.querySelectorAll('.viz-panel');
-    panelEls.forEach((el, idx) => {
-      if (idx >= count - lastRowCount) {
-        el.style.gridColumn = `span ${spanWidth}`;
-      }
+    const panelEls = Array.from(document.querySelectorAll('.viz-panel'));
+    const lastRowPanels = panelEls.slice(count - lastRowCount, count);
+
+    // Each last-row panel spans: total cols / number of panels in last row
+    // Use integer spans only — find the closest whole divisor
+    let span = Math.floor(cols / lastRowCount);
+    const remainder = cols % lastRowCount;
+
+    lastRowPanels.forEach((el, i) => {
+      // distribute remainder columns to first panels in the row
+      const extraSpan = i < remainder ? 1 : 0;
+      el.style.gridColumn = `span ${span + extraSpan}`;
     });
   }
 }
