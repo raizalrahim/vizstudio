@@ -164,17 +164,19 @@
   body.presentation header { display: none; }
   body.presentation #upload-zone { display: none !important; }
   body.presentation #player-bar { display: none !important; }
-  body.presentation #panels-section { padding: 0; }
+  body.presentation #panels-section { padding: 0; height: 100vh; }
   body.presentation .section-header { display: none; }
   body.presentation .panel-header { display: none; }
   body.presentation .stem-slot { display: none; }
   body.presentation .panel-settings { display: none !important; }
   body.presentation .add-panel-card { display: none; }
-  body.presentation .viz-panel { border: none; border-radius: 0; }
+  body.presentation .viz-panel { border: none; border-radius: 0; overflow: hidden; }
   body.presentation .viz-panel:hover { border: none; }
-  body.presentation .panel-canvas { height: 260px; }
-  body.presentation #panels-grid { gap: 2px; }
+  body.presentation .panel-canvas { width: 100%; height: 100%; display: block; }
+  body.presentation .panel-canvas-wrap { height: 100%; }
+  body.presentation #panels-grid { gap: 2px; height: 100%; }
   body.presentation .panel-level-bar { display: none; }
+  body.presentation .panel-idle-overlay { display: none; }
 
   #presentation-exit {
     position: fixed;
@@ -187,6 +189,30 @@
   }
   #presentation-exit:hover { opacity: 1; }
   body.presentation #presentation-exit { display: inline-flex; }
+
+  /* HAMBURGER MENU */
+  #menu-btn { width: 40px; height: 40px; padding: 0; justify-content: center; font-size: 18px; letter-spacing: 0; flex-shrink: 0; }
+  #menu-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(232,255,0,0.08); }
+
+  #menu-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--panel-radius);
+    padding: 8px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 150;
+    min-width: 200px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  #menu-dropdown.open { display: flex; }
+  #menu-dropdown .btn { justify-content: flex-start; width: 100%; border-color: transparent; }
+  #menu-dropdown .btn:hover { border-color: var(--accent); }
+  #menu-dropdown .menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
 
   /* TOAST */
   #toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 0.2s, transform 0.2s; z-index: 400; white-space: nowrap; pointer-events: none; }
@@ -204,15 +230,20 @@
   <div class="logo">VIZSTUDIO <span>MUSIC VISUALIZER</span></div>
   <div class="header-controls">
     <span class="mode-badge" id="mode-badge">NO FILE</span>
+    <button class="btn" id="presentation-btn">⛶ PRESENT</button>
+    <button class="btn" id="menu-btn" title="Menu">≡</button>
+  </div>
+  <div id="menu-dropdown">
+    <button class="btn" id="add-panel-btn">＋ ADD PANEL</button>
+    <button class="btn" id="toggle-upload-btn">HIDE UPLOAD</button>
+    <div class="menu-divider"></div>
     <button class="btn" id="save-layout-btn">💾 SAVE LAYOUT</button>
     <label class="btn" style="cursor:pointer;position:relative;">
       📂 LOAD LAYOUT
       <input type="file" id="load-layout-input" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
     </label>
-    <button class="btn" id="toggle-upload-btn">HIDE UPLOAD</button>
-    <button class="btn" id="add-panel-btn">+ ADD PANEL</button>
-    <button class="btn" id="presentation-btn">⛶ PRESENT</button>
-    <button class="btn" id="reset-btn">RESET</button>
+    <div class="menu-divider"></div>
+    <button class="btn" id="reset-btn" style="color:#ff6666;">↺ RESET</button>
   </div>
 </header>
 
@@ -272,6 +303,32 @@
 <button class="btn" id="presentation-exit">✕ EXIT PRESENTATION</button>
 
 <script>
+// ─── HAMBURGER MENU ───────────────────────────────────────────────────────────
+const menuBtn      = document.getElementById('menu-btn');
+const menuDropdown = document.getElementById('menu-dropdown');
+
+menuBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  const open = menuDropdown.classList.toggle('open');
+  menuBtn.classList.toggle('active', open);
+});
+
+// close on outside click
+document.addEventListener('click', e => {
+  if (!menuDropdown.contains(e.target) && e.target !== menuBtn) {
+    menuDropdown.classList.remove('open');
+    menuBtn.classList.remove('active');
+  }
+});
+
+// close menu after any action inside it
+menuDropdown.querySelectorAll('.btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    menuDropdown.classList.remove('open');
+    menuBtn.classList.remove('active');
+  });
+});
+
 // ─── TOAST ────────────────────────────────────────────────────────────────────
 let toastTimer = null;
 function showToast(msg, isError = false) {
@@ -285,6 +342,7 @@ function showToast(msg, isError = false) {
 // ─── PRESENTATION MODE ────────────────────────────────────────────────────────
 function togglePresentation() {
   const active = document.body.classList.toggle('presentation');
+  updatePresentationGrid();
   showToast(active ? 'PRESENTATION MODE · ESC TO EXIT' : 'PRESENTATION MODE OFF');
 }
 document.getElementById('presentation-btn').addEventListener('click', togglePresentation);
@@ -738,6 +796,27 @@ function renderPanelsGrid() {
   add.innerHTML = '<div class="plus">＋</div><span>ADD PANEL</span>';
   add.addEventListener('click', openAddModal);
   grid.appendChild(add);
+  updatePresentationGrid();
+}
+
+function updatePresentationGrid() {
+  const grid = document.getElementById('panels-grid');
+  const count = panels.length;
+  if (count === 0) { grid.style.gridTemplateRows = ''; return; }
+
+  // Calculate rows and columns to fill screen evenly
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  grid.style.gridTemplateRows = document.body.classList.contains('presentation')
+    ? `repeat(${rows}, 1fr)`
+    : '';
+
+  // Reset to auto-fill in normal mode
+  if (!document.body.classList.contains('presentation')) {
+    grid.style.gridTemplateColumns = '';
+    grid.style.gridTemplateRows = '';
+  }
 }
 
 function createPanelEl(p) {
