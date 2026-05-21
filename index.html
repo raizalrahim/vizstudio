@@ -188,7 +188,7 @@
 </header>
 
 <div id="upload-zone">
-  <input type="file" id="file-input" accept="audio/*">
+  <input type="file" id="file-input" accept="audio/mpeg,audio/wav,audio/flac,audio/ogg,audio/mp4,audio/aac,audio/x-m4a,audio/webm,.mp3,.wav,.flac,.ogg,.m4a,.aac">
   <div class="upload-icon">🎵</div>
   <h3>DROP A MUSIC FILE OR CLICK TO BROWSE</h3>
   <p>MP3 · WAV · FLAC · OGG · M4A &nbsp;·&nbsp; Or skip this and load stems directly into panels below</p>
@@ -203,7 +203,7 @@
     <button class="btn" id="play-btn" style="width:44px;height:44px;border-radius:50%;justify-content:center;font-size:18px;padding:0;">▶</button>
     <label class="btn" style="cursor:pointer;position:relative;">
       ⏏ CHANGE TRACK
-      <input type="file" id="change-file-input" accept="audio/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+      <input type="file" id="change-file-input" accept="audio/mpeg,audio/wav,audio/flac,audio/ogg,audio/mp4,audio/aac,audio/x-m4a,audio/webm,.mp3,.wav,.flac,.ogg,.m4a,.aac" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
     </label>
   </div>
   <div class="progress-wrap">
@@ -724,7 +724,7 @@ function createPanelEl(p) {
       <span class="stem-filename">${stem ? stem.fileName : (p.stemHint ? '⚠ RELOAD: ' + p.stemHint : 'No stem loaded — using full mix')}</span>
       <label class="stem-load-btn">
         ${stem ? '↺ CHANGE' : '+ LOAD STEM'}
-        <input type="file" class="stem-file-inp" accept="audio/*">
+        <input type="file" class="stem-file-inp" accept="audio/mpeg,audio/wav,audio/flac,audio/ogg,audio/mp4,audio/aac,audio/x-m4a,audio/webm,.mp3,.wav,.flac,.ogg,.m4a,.aac">
       </label>
       <button class="stem-clear-btn" title="Remove stem" style="${!stem?'display:none':''}">✕</button>
     </div>
