@@ -426,7 +426,7 @@
         <div class="help-row"><span class="help-key">WAVE</span><span class="help-desc">Glowing time-domain waveform</span></div>
         <div class="help-row"><span class="help-key">CIRCLE</span><span class="help-desc">Radial shape that pulses with energy</span></div>
         <div class="help-row"><span class="help-key">MIRROR BARS</span><span class="help-desc">Bars mirrored above and below center</span></div>
-        <div class="help-row"><span class="help-key">PARTICLES</span><span class="help-desc">Energy-reactive particles that burst upward</span></div>
+        <div class="help-row"><span class="help-key">BLOB</span><span class="help-desc">Organic morphing shape that breathes and pulses with audio energy</span></div>
         <div class="help-row"><span class="help-key">OSCILLOSCOPE</span><span class="help-desc">Raw audio signal trace</span></div>
         <div class="help-row"><span class="help-key">SPECTRUM FILL</span><span class="help-desc">Filled frequency area with gradient</span></div>
         <div class="help-row"><span class="help-key">RADIAL BARS</span><span class="help-desc">Bars radiating outward from center</span></div>
@@ -551,7 +551,7 @@ const BANDS = [
   { id:'high',  label:'HIGHS',      freq:'4k–20k Hz',   color:'#00ff88', fLow:4000, fHigh:20000 },
   { id:'all',   label:'FULL RANGE', freq:'20–20k Hz',   color:'#ffffff', fLow:20,   fHigh:20000 },
 ];
-const VIZ_TYPES = ['BARS','WAVE','CIRCLE','MIRROR BARS','PARTICLES','OSCILLOSCOPE','SPECTRUM FILL','RADIAL BARS'];
+const VIZ_TYPES = ['BARS','WAVE','CIRCLE','MIRROR BARS','BLOB','OSCILLOSCOPE','SPECTRUM FILL','RADIAL BARS'];
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let masterAudioCtx = null;
@@ -1518,7 +1518,7 @@ function drawPanel(p) {
     case 'WAVE':          drawWave(ctx, W, H, tData, col1, p.sensitivity); break;
     case 'CIRCLE':        drawCircle(ctx, W, H, slicedFreq, col1, clampedEnergy); break;
     case 'MIRROR BARS':   drawMirrorBars(ctx, W, H, slicedFreq, col1, col2, p.sensitivity); break;
-    case 'PARTICLES':     drawParticles(ctx, W, H, p, clampedEnergy, col1); break;
+    case 'BLOB':          drawBlob(ctx, W, H, slicedFreq, col1, col2, clampedEnergy); break;
     case 'OSCILLOSCOPE':  drawOscilloscope(ctx, W, H, tData, col1); break;
     case 'SPECTRUM FILL': drawSpectrumFill(ctx, W, H, slicedFreq, col1, col2, p.sensitivity); break;
     case 'RADIAL BARS':   drawRadialBars(ctx, W, H, slicedFreq, col1, clampedEnergy); break;
@@ -1663,22 +1663,54 @@ function drawSpectrumFill(ctx, W, H, data, col1, col2, sens) {
   ctx.stroke();
 }
 
-function drawParticles(ctx, W, H, p, energy, col) {
-  if (!p.particles) p.particles = [];
-  if (energy > 0.1) {
-    const count = Math.floor(energy * 6);
-    for (let i = 0; i < count; i++) {
-      p.particles.push({ x: Math.random()*W, y: H, vx: (Math.random()-0.5)*3, vy: -(Math.random()*4+2)*energy, life: 1, size: Math.random()*4+2 });
-    }
+function drawBlob(ctx, W, H, data, col1, col2, energy) {
+  const cx = W / 2, cy = H / 2;
+  const baseR = Math.min(W, H) * 0.28;
+  const points = 120;
+  const time = performance.now() / 1000;
+
+  ctx.beginPath();
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * Math.PI * 2;
+    const dataIdx = Math.floor((i / points) * data.length);
+    const freq = data[dataIdx] / 255;
+
+    // layer multiple sine waves for organic morphing
+    const noise =
+      Math.sin(angle * 3 + time * 1.2) * 0.15 * freq +
+      Math.sin(angle * 5 - time * 0.8) * 0.10 * freq +
+      Math.sin(angle * 7 + time * 0.5) * 0.06 * freq +
+      Math.sin(angle * 2 - time * 1.5) * 0.08 * energy;
+
+    const r = baseR * (1 + noise + freq * 0.35);
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
-  p.particles = p.particles.filter(pt => pt.life > 0);
-  p.particles.forEach(pt => {
-    pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.05; pt.life -= 0.02;
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, pt.size * pt.life, 0, Math.PI*2);
-    ctx.fillStyle = col + Math.floor(pt.life*255).toString(16).padStart(2,'0');
-    ctx.fill();
-  });
+  ctx.closePath();
+
+  // fill with gradient
+  const grad = ctx.createRadialGradient(cx, cy, baseR * 0.1, cx, cy, baseR * 1.4);
+  grad.addColorStop(0, col2 === '#000000' ? col1 + '55' : col2 + '88');
+  grad.addColorStop(1, col1 + '11');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // glowing outline
+  ctx.strokeStyle = col1;
+  ctx.lineWidth = 2;
+  ctx.shadowBlur = 12 + energy * 24;
+  ctx.shadowColor = col1;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // inner core dot that pulses with energy
+  ctx.beginPath();
+  ctx.arc(cx, cy, baseR * 0.08 + energy * baseR * 0.12, 0, Math.PI * 2);
+  ctx.fillStyle = col1;
+  ctx.globalAlpha = 0.4 + energy * 0.5;
+  ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
 // ─── MAIN LOOP ────────────────────────────────────────────────────────────────

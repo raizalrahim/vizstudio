@@ -65,7 +65,7 @@ Each panel independently visualizes a specific frequency band.
 | **Wave** | Glowing time-domain waveform |
 | **Circle** | Radial shape that pulses with energy |
 | **Mirror Bars** | Bars mirrored above and below center |
-| **Particles** | Energy-reactive particles that burst upward |
+| **Blob** | Organic morphing shape that breathes and pulses with audio energy |
 | **Oscilloscope** | Raw audio signal trace |
 | **Spectrum Fill** | Filled frequency area with gradient |
 | **Radial Bars** | Bars radiating outward from center |
@@ -235,7 +235,7 @@ Screen width column caps: ≤900px = 2 cols · ≤1200px = 3 cols · >1200px = 4
 | Phone | Not recommended | Best on tablet or desktop |
 
 **Viz types by GPU weight (lightest → heaviest):**
-Oscilloscope → Bars → Wave → Mirror Bars → Spectrum Fill → Radial Bars → Circle → Particles
+Oscilloscope → Bars → Wave → Mirror Bars → Blob → Spectrum Fill → Radial Bars → Circle
 
 > Background images add slight per-panel rendering overhead. Use sparingly on lower-end devices.
 
