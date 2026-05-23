@@ -1085,7 +1085,6 @@ function addPanel(band) {
 
 function removePanel(id) {
   removeStemAudio(id);
-  waterfallBuffers.delete(id);
   ringBurstState.delete(id);
   panels = panels.filter(p => p.id !== id);
   renderPanelsGrid();
@@ -1775,15 +1774,6 @@ function drawRingBurst(ctx, W, H, energy, col1, col2, panelId) {
   ctx.globalAlpha = 0.3 + energy * 0.6;
   ctx.fill();
   ctx.globalAlpha = 1;
-}
-
-function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : null;
 }
 
 function drawLissajous(ctx, W, H, timeData, col1, energy) {
