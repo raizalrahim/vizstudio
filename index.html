@@ -1085,6 +1085,7 @@ function addPanel(band) {
 
 function removePanel(id) {
   removeStemAudio(id);
+  waterfallBuffers.delete(id);
   panels = panels.filter(p => p.id !== id);
   renderPanelsGrid();
   updateModeBadge();
@@ -1501,9 +1502,9 @@ function drawPanel(p) {
   const lf = el.querySelector('.panel-level-fill');
   if (lf) lf.style.width = (clampedEnergy * 100) + '%';
 
-  ctx.clearRect(0, 0, W, H);
-  // waterfall preserves its own pixel history — skip background fill for it
+  // waterfall manages its own offscreen buffer — skip clear and fill entirely
   if (p.vizType !== 'WATERFALL') {
+    ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = p.bgImage ? 'rgba(10,10,10,0.55)' : '#0a0a0a';
     ctx.fillRect(0, 0, W, H);
   }
@@ -1526,7 +1527,7 @@ function drawPanel(p) {
     case 'OSCILLOSCOPE':  drawOscilloscope(ctx, W, H, tData, col1); break;
     case 'SPECTRUM FILL': drawSpectrumFill(ctx, W, H, slicedFreq, col1, col2, p.sensitivity); break;
     case 'RADIAL BARS':   drawRadialBars(ctx, W, H, slicedFreq, col1, clampedEnergy); break;
-    case 'WATERFALL':     drawWaterfall(ctx, W, H, slicedFreq, col1, col2); break;
+    case 'WATERFALL':     drawWaterfall(ctx, W, H, slicedFreq, col1, col2, p.id); break;
     case 'LISSAJOUS':     drawLissajous(ctx, W, H, tData, col1, clampedEnergy); break;
   }
 }
@@ -1710,24 +1711,41 @@ function drawBlob(ctx, W, H, data, col1, col2, energy) {
   ctx.globalAlpha = 1;
 }
 
-function drawWaterfall(ctx, W, H, data, col1, col2) {
-  // shift existing image down by 1 row
-  const imageData = ctx.getImageData(0, 0, W, H - 1);
-  ctx.putImageData(imageData, 0, 1);
+// offscreen waterfall buffers per panel
+const waterfallBuffers = new Map();
 
-  // draw new top row from current frequency data
+function drawWaterfall(ctx, W, H, data, col1, col2, panelId) {
+  // get or create offscreen buffer for this panel
+  let buf = waterfallBuffers.get(panelId);
+  if (!buf || buf.width !== W || buf.height !== H) {
+    buf = document.createElement('canvas');
+    buf.width = W;
+    buf.height = H;
+    waterfallBuffers.set(panelId, buf);
+  }
+  const bCtx = buf.getContext('2d');
+
+  // shift buffer down by 1 pixel
+  const imageData = bCtx.getImageData(0, 0, W, H - 1);
+  bCtx.putImageData(imageData, 0, 1);
+
+  // draw new top row
   const n = data.length;
   for (let x = 0; x < W; x++) {
     const v = data[Math.floor(x * n / W)] / 255;
-    // interpolate between col2 (low) and col1 (high)
     const c1 = hexToRgb(col1) || { r:232, g:255, b:0 };
-    const c2 = hexToRgb(col2 !== '#000000' ? col2 : '#003333') || { r:0, g:51, b:51 };
+    const c2 = hexToRgb(col2 !== '#000000' ? col2 : '#001a1a') || { r:0, g:26, b:26 };
     const r = Math.round(c2.r + (c1.r - c2.r) * v);
     const g = Math.round(c2.g + (c1.g - c2.g) * v);
     const b = Math.round(c2.b + (c1.b - c2.b) * v);
-    ctx.fillStyle = `rgba(${r},${g},${b},${0.2 + v * 0.8})`;
-    ctx.fillRect(x, 0, 1, 1);
+    const alpha = Math.round((0.15 + v * 0.85) * 255);
+    const px = bCtx.createImageData(1, 1);
+    px.data[0] = r; px.data[1] = g; px.data[2] = b; px.data[3] = alpha;
+    bCtx.putImageData(px, x, 0);
   }
+
+  // composite buffer onto main canvas
+  ctx.drawImage(buf, 0, 0);
 }
 
 function hexToRgb(hex) {
