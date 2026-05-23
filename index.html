@@ -1384,9 +1384,13 @@ function createPanelEl(p) {
     wrap.querySelector('.mute-btn').title = s.muted ? 'Unmute' : 'Mute';
   });
 
-  // prevent button clicks from triggering drag
-  wrap.querySelectorAll('.panel-btn, select, input, label, .stem-load-btn, .stem-clear-btn').forEach(el => {
+  // prevent drag from firing on interactive elements — exclude panel-btn so click events work
+  wrap.querySelectorAll('select, input, label, .stem-load-btn, .stem-clear-btn, .bg-load-btn').forEach(el => {
     el.addEventListener('mousedown', e => e.stopPropagation());
+  });
+  // drag handle is the only intended drag trigger
+  wrap.querySelector('.drag-handle').addEventListener('mousedown', e => {
+    // allow drag only from the handle itself
   });
 
   // DRAG TO REORDER
