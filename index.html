@@ -1253,26 +1253,40 @@ function createPanelEl(p) {
     </div>
   `;
 
-  // Events
-  wrap.querySelector('.duplicate-btn').addEventListener('click', () => {
+  // Events — use explicit references to avoid querySelector ambiguity
+  const removeBtnEl = wrap.querySelector('.remove-btn');
+  const duplicateBtnEl = wrap.querySelector('.duplicate-btn');
+  const settingsBtnEl = wrap.querySelector('.toggle-settings-btn');
+  const fsBtnEl = wrap.querySelector('.toggle-fs-btn');
+  const muteBtnEl = wrap.querySelector('.mute-btn');
+
+  removeBtnEl.addEventListener('click', (e) => { e.stopPropagation(); removePanel(p.id); });
+  duplicateBtnEl.addEventListener('click', (e) => {
+    e.stopPropagation();
     const id = ++panelId;
     const clone = Object.assign({}, p, { id, settingsOpen: false, fullscreen: false, particles: [] });
     const idx = panels.findIndex(x => x.id === p.id);
     panels.splice(idx + 1, 0, clone);
     renderPanelsGrid();
   });
-
-  wrap.querySelector('.remove-btn').addEventListener('click', () => removePanel(p.id));
-
-  wrap.querySelector('.toggle-settings-btn').addEventListener('click', () => {
+  settingsBtnEl.addEventListener('click', (e) => {
+    e.stopPropagation();
     p.settingsOpen = !p.settingsOpen;
     wrap.querySelector('.panel-settings').classList.toggle('open', p.settingsOpen);
-    wrap.querySelector('.toggle-settings-btn').classList.toggle('active', p.settingsOpen);
+    settingsBtnEl.classList.toggle('active', p.settingsOpen);
+  });
+  fsBtnEl.addEventListener('click', (e) => { e.stopPropagation(); toggleFullscreen(p.id); });
+  muteBtnEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const s = stemMap.get(p.id);
+    if (!s) return;
+    s.muted = !s.muted;
+    s.gainNode.gain.value = s.muted ? 0 : parseFloat(volSlider.value);
+    muteBtnEl.classList.toggle('muted', s.muted);
+    muteBtnEl.title = s.muted ? 'Unmute' : 'Mute';
   });
 
-  wrap.querySelector('.toggle-fs-btn').addEventListener('click', () => toggleFullscreen(p.id));
-
-  wrap.querySelector('.viz-type-sel').addEventListener('change', e => { p.vizType = e.target.value; p.particles = []; });
+  wrap.querySelector('.viz-type-sel').addEventListener('change', e => { p.vizType = e.target.value; });
   wrap.querySelector('.color1-inp').addEventListener('input', e => {
     p.color = e.target.value;
     wrap.querySelector('.panel-band-label').style.color = p.color;
@@ -1309,10 +1323,11 @@ function createPanelEl(p) {
     e.target.value = '';
   });
 
-  // BG IMAGE CLEAR
-  const bgClearBtn = wrap.querySelector('.bg-clear-btn');
+  // BG IMAGE CLEAR — scope within panel-settings to avoid conflict
+  const bgClearBtn = wrap.querySelector('.panel-settings .bg-clear-btn');
   if (bgClearBtn) {
-    bgClearBtn.addEventListener('click', () => {
+    bgClearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       p.bgImage   = null;
       p.bgOpacity = 0.35;
       p.bgFit     = 'cover';
@@ -1367,30 +1382,20 @@ function createPanelEl(p) {
     e.target.value = '';
   });
 
-  // STEM CLEAR
-  wrap.querySelector('.stem-clear-btn').addEventListener('click', () => {
-    removeStemAudio(p.id);
-    updateModeBadge();
-    renderPanelsGrid();
-  });
+  // STEM CLEAR — use specific class within stem-slot only
+  const stemClearBtn = wrap.querySelector('.stem-slot .stem-clear-btn');
+  if (stemClearBtn) {
+    stemClearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeStemAudio(p.id);
+      updateModeBadge();
+      renderPanelsGrid();
+    });
+  }
 
-  // MUTE
-  wrap.querySelector('.mute-btn').addEventListener('click', () => {
-    const s = stemMap.get(p.id);
-    if (!s) return;
-    s.muted = !s.muted;
-    s.gainNode.gain.value = s.muted ? 0 : parseFloat(volSlider.value);
-    wrap.querySelector('.mute-btn').classList.toggle('muted', s.muted);
-    wrap.querySelector('.mute-btn').title = s.muted ? 'Unmute' : 'Mute';
-  });
-
-  // prevent drag from firing on interactive elements — exclude panel-btn so click events work
+  // prevent drag from firing on interactive elements
   wrap.querySelectorAll('select, input, label, .stem-load-btn, .stem-clear-btn, .bg-load-btn').forEach(el => {
     el.addEventListener('mousedown', e => e.stopPropagation());
-  });
-  // drag handle is the only intended drag trigger
-  wrap.querySelector('.drag-handle').addEventListener('mousedown', e => {
-    // allow drag only from the handle itself
   });
 
   // DRAG TO REORDER
