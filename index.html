@@ -261,6 +261,25 @@
   #presentation-exit:hover { opacity: 1; }
   body.presentation #presentation-exit { display: inline-flex; }
 
+  /* MIC BAR */
+  #mic-bar {
+    margin: 20px 28px 0;
+    background: rgba(255,60,60,0.06);
+    border: 1px solid rgba(255,60,60,0.3);
+    border-radius: var(--panel-radius);
+    padding: 14px 24px;
+    display: none;
+    align-items: center;
+    gap: 16px;
+  }
+  #mic-bar.visible { display: flex; }
+  .mic-indicator { display: flex; align-items: center; gap: 10px; flex: 1; }
+  .mic-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff4444; animation: micPulse 1s ease-in-out infinite; flex-shrink: 0; }
+  @keyframes micPulse { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,68,68,0.4); } 50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(255,68,68,0); } }
+  .mic-label { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: #ff6666; }
+  .mic-hint { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 1px; flex: 1; }
+  body.presentation #mic-bar { display: none !important; }
+
   /* HAMBURGER MENU */
   #menu-btn { width: 40px; height: 40px; padding: 0; justify-content: center; font-size: 18px; letter-spacing: 0; flex-shrink: 0; }
   #menu-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(232,255,0,0.08); }
@@ -308,6 +327,8 @@
     <button class="btn" id="add-panel-btn">＋ ADD PANEL</button>
     <button class="btn" id="toggle-upload-btn">HIDE UPLOAD</button>
     <div class="menu-divider"></div>
+    <button class="btn" id="mic-btn">🎤 USE MICROPHONE</button>
+    <div class="menu-divider"></div>
     <button class="btn" id="save-layout-btn">💾 SAVE LAYOUT</button>
     <label class="btn" style="cursor:pointer;position:relative;">
       📂 LOAD LAYOUT
@@ -353,6 +374,16 @@
   </div>
 </div>
 
+<!-- MIC MODE BAR -->
+<div id="mic-bar">
+  <div class="mic-indicator">
+    <span class="mic-dot"></span>
+    <span class="mic-label">🎤 MICROPHONE LIVE</span>
+  </div>
+  <div class="mic-hint">All panels visualizing mic input · stems disabled</div>
+  <button class="btn" id="stop-mic-btn" style="color:#ff6666;flex-shrink:0;">⏹ STOP MIC</button>
+</div>
+
 <div id="panels-section">
   <div class="section-header">
     <span class="section-title">FREQUENCY PANELS</span>
@@ -376,6 +407,7 @@
         <div class="help-row"><span class="help-key">▶ PLAY</span><span class="help-desc">Plays all audio simultaneously — main track and all stems in sync</span></div>
         <div class="help-row"><span class="help-key">⏏ CHANGE TRACK</span><span class="help-desc">Swap the main track without resetting your panel layout</span></div>
         <div class="help-row"><span class="help-key">✕ CLEAR TRACK</span><span class="help-desc">Remove the main track — panels and stems stay intact</span></div>
+        <div class="help-row"><span class="help-key">🎤 MICROPHONE</span><span class="help-desc">Switch to live mic input — all panels visualize microphone audio in real time. Stops any playing audio.</span></div>
       </div>
       <div class="help-divider"></div>
       <div class="help-section">
@@ -405,6 +437,14 @@
         <div class="help-row"><span class="help-key">+ LOAD STEM</span><span class="help-desc">Assign a stem file to a panel — it visualizes only that stem's frequencies</span></div>
         <div class="help-row"><span class="help-key">🟢 LIVE DOT</span><span class="help-desc">Green pulsing = playing · Orange = paused · Dark = no stem</span></div>
         <div class="help-tip">💡 Use LALAL.AI, Moises.app, or Audiostrip to split your song into stems — then load each into its own panel for accurate per-instrument visuals</div>
+      </div>
+      <div class="help-divider"></div>
+      <div class="help-section">
+        <h4>Microphone</h4>
+        <div class="help-row"><span class="help-key">🎤 USE MIC</span><span class="help-desc">Found in ≡ menu — switches all panels to live microphone input. Any playing audio stops first.</span></div>
+        <div class="help-row"><span class="help-key">⏹ STOP MIC</span><span class="help-desc">Stops mic and returns to previous audio mode — file, stems, or empty</span></div>
+        <div class="help-row"><span class="help-key">MIC LIVE BAR</span><span class="help-desc">Red pulsing bar appears while mic is active — stems are bypassed, all panels visualize mic input</span></div>
+        <div class="help-tip">💡 Mic audio is never played through your speakers — no feedback loop. Works best in a quiet environment or with headphones.</div>
       </div>
       <div class="help-divider"></div>
       <div class="help-section">
@@ -520,6 +560,14 @@ let masterGain = null;
 let masterSource = null;
 let masterFreqData = null;
 let masterTimeData = null;
+
+// mic state
+let micStream = null;
+let micSource = null;
+let micAnalyser = null;
+let micFreqData = null;
+let micTimeData = null;
+let isMicActive = false;
 
 // stems: Map<panelId, { audioEl, analyser, gainNode, source, freqData, timeData, muted }>
 const stemMap = new Map();
@@ -753,7 +801,85 @@ function loadFile(file) {
 document.getElementById('file-input').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); });
 document.getElementById('change-file-input').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); e.target.value=''; });
 
-// ─── CLEAR MAIN TRACK ─────────────────────────────────────────────────────────
+// ─── MICROPHONE ───────────────────────────────────────────────────────────────
+document.getElementById('mic-btn').addEventListener('click', () => {
+  if (isMicActive) { stopMic(); return; }
+  startMic();
+});
+document.getElementById('stop-mic-btn').addEventListener('click', stopMic);
+
+async function startMic() {
+  try {
+    ensureAudioCtx();
+    if (masterAudioCtx.state === 'suspended') await masterAudioCtx.resume();
+
+    // stop any playing audio first
+    if (isPlaying) { audioEl.pause(); setPlaying(false); }
+
+    // request mic permission
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+    // create mic analyser — separate from master so file audio is untouched
+    micAnalyser = masterAudioCtx.createAnalyser();
+    micAnalyser.fftSize = FFT;
+    micSource = masterAudioCtx.createMediaStreamSource(micStream);
+    micSource.connect(micAnalyser);
+    // mic does NOT connect to destination — no feedback loop
+    micFreqData = new Uint8Array(micAnalyser.frequencyBinCount);
+    micTimeData = new Uint8Array(micAnalyser.fftSize);
+
+    isMicActive = true;
+
+    // UI updates
+    document.getElementById('mic-bar').classList.add('visible');
+    document.getElementById('player-bar').classList.remove('visible');
+    document.getElementById('upload-zone').style.display = 'none';
+    document.getElementById('status-label').textContent = 'MIC LIVE';
+    document.getElementById('mode-badge').textContent = 'MIC LIVE';
+    document.getElementById('mode-badge').className = 'mode-badge';
+    document.getElementById('mode-badge').style.borderColor = '#ff4444';
+    document.getElementById('mode-badge').style.color = '#ff4444';
+
+    showToast('🎤 MICROPHONE ACTIVE');
+    startLoop();
+
+  } catch (err) {
+    if (err.name === 'NotAllowedError') {
+      showToast('MIC PERMISSION DENIED', true);
+    } else {
+      showToast('COULD NOT ACCESS MIC', true);
+    }
+    console.error('Mic error:', err);
+  }
+}
+
+function stopMic() {
+  if (!isMicActive) return;
+
+  // stop mic tracks
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (micSource) { micSource.disconnect(); micSource = null; }
+  micAnalyser = null;
+  micFreqData = null;
+  micTimeData = null;
+  isMicActive = false;
+
+  // restore UI
+  document.getElementById('mic-bar').classList.remove('visible');
+  document.getElementById('mode-badge').style.borderColor = '';
+  document.getElementById('mode-badge').style.color = '';
+
+  // show upload zone or player bar depending on state
+  if (hasMasterTrack || stemMap.size > 0) {
+    document.getElementById('player-bar').classList.add('visible');
+    document.getElementById('status-label').textContent = 'PAUSED';
+  } else {
+    document.getElementById('upload-zone').style.display = uploadZoneHidden ? 'none' : '';
+    document.getElementById('status-label').textContent = 'NO FILE LOADED';
+  }
+  updateModeBadge();
+  showToast('MIC STOPPED');
+}
 document.getElementById('clear-track-btn').addEventListener('click', () => {
   if (isPlaying) { audioEl.pause(); setPlaying(false); }
   audioEl.src = '';
@@ -787,6 +913,7 @@ uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classL
 document.getElementById('reset-btn').addEventListener('click', () => {
   pauseAll();
   clearInterval(resyncTimer);
+  stopMic();
   audioEl.src = '';
   hasMasterTrack = false;
   stemMap.forEach((_, id) => removeStemAudio(id));
@@ -1337,11 +1464,11 @@ function drawPanel(p) {
   const W = canvas.offsetWidth || 320, H = canvas.offsetHeight || 180;
   canvas.width = W; canvas.height = H;
 
-  // Choose data source: stem if assigned, else master
+  // Choose data source: mic > stem > master
   const stem = stemMap.get(p.id);
-  const useAnalyser = stem ? stem.analyser : masterAnalyser;
-  const useFreqData = stem ? stem.freqData : masterFreqData;
-  const useTimeData = stem ? stem.timeData : masterTimeData;
+  const useAnalyser = isMicActive ? micAnalyser : (stem ? stem.analyser : masterAnalyser);
+  const useFreqData = isMicActive ? micFreqData : (stem ? stem.freqData : masterFreqData);
+  const useTimeData = isMicActive ? micTimeData : (stem ? stem.timeData : masterTimeData);
 
   if (useAnalyser && useFreqData) {
     useAnalyser.getByteFrequencyData(useFreqData);
@@ -1562,6 +1689,10 @@ function startLoop() {
     if (masterAnalyser && masterFreqData) {
       masterAnalyser.getByteFrequencyData(masterFreqData);
       masterAnalyser.getByteTimeDomainData(masterTimeData);
+    }
+    if (isMicActive && micAnalyser && micFreqData) {
+      micAnalyser.getByteFrequencyData(micFreqData);
+      micAnalyser.getByteTimeDomainData(micTimeData);
     }
     updateProgress();
     panels.forEach(drawPanel);

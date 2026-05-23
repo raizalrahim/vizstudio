@@ -1,6 +1,8 @@
 # VIZSTUDIO — Music Visualizer
 
-A browser-based, real-time music visualizer with modular frequency panels, stem support, background images, presentation mode, and full per-panel customization. No installation required. No data leaves your device. Deployable as a single HTML file.
+A browser-based, real-time music visualizer with modular frequency panels, stem support, live microphone input, background images, presentation mode, and full per-panel customization. No installation required. No data leaves your device. Deployable as a single HTML file.
+
+🌐 **Live at [vizstudio.vercel.app](https://vizstudio.vercel.app)**
 
 ---
 
@@ -10,7 +12,8 @@ A browser-based, real-time music visualizer with modular frequency panels, stem 
 2. Drop a music file onto the upload zone or click to browse
 3. Hit **▶** to play
 4. Watch your panels react in real time
-5. Optionally load individual stem files into each panel for per-instrument visualization
+5. Optionally load individual stem files into panels for per-instrument visualization
+6. Or use **🎤 USE MICROPHONE** from the ≡ menu for live mic input
 
 **Supported audio formats:** MP3 · WAV · FLAC · OGG · M4A · AAC
 
@@ -18,31 +21,29 @@ A browser-based, real-time music visualizer with modular frequency panels, stem 
 
 ## Header Controls
 
-The header stays minimal with two always-visible controls:
-
 | Control | Description |
 |---|---|
-| **Mode Badge** | Shows current audio state (NO FILE / FULL MIX / MIX + N STEMS / N STEMS ONLY) |
-| **⛶ PRESENT** | Enter presentation mode — hides all UI, shows only visualizations |
-| **≡ Menu** | Opens the hamburger dropdown with all other controls |
+| **Mode Badge** | Current audio state — NO FILE / FULL MIX / MIX + N STEMS / N STEMS ONLY / MIC LIVE |
+| **⛶ PRESENT** | Enter presentation mode |
+| **≡ Menu** | All other controls |
 
 **Inside the ≡ Menu:**
 
 | Item | Description |
 |---|---|
 | ＋ ADD PANEL | Add a new frequency panel |
-| HIDE / SHOW UPLOAD | Toggle the upload zone visibility |
-| 💾 SAVE LAYOUT | Export panel configuration as a JSON file |
-| 📂 LOAD LAYOUT | Import a previously saved layout JSON file |
+| HIDE / SHOW UPLOAD | Toggle the upload zone |
+| 🎤 USE MICROPHONE | Switch to live mic input |
+| 💾 SAVE LAYOUT | Export panel config as JSON |
+| 📂 LOAD LAYOUT | Import a saved layout JSON |
+| 📖 HOW TO USE | In-app help guide |
 | ↺ RESET | Clear everything and start fresh |
 
 ---
 
 ## Frequency Panels
 
-Each panel independently visualizes a specific frequency band. Add as many as your device can handle comfortably.
-
-**Available frequency bands:**
+Each panel independently visualizes a specific frequency band.
 
 | Band | Frequency Range | Best For |
 |---|---|---|
@@ -58,18 +59,16 @@ Each panel independently visualizes a specific frequency band. Add as many as yo
 
 ## Visualization Types
 
-Each panel supports 8 visualization styles:
-
 | Type | Description |
 |---|---|
-| **Bars** | Classic frequency bar chart with gradient fill |
+| **Bars** | Frequency bar chart with gradient fill |
 | **Wave** | Glowing time-domain waveform |
-| **Circle** | Radial frequency shape that pulses with energy |
+| **Circle** | Radial shape that pulses with energy |
 | **Mirror Bars** | Bars mirrored above and below center |
 | **Particles** | Energy-reactive particles that burst upward |
 | **Oscilloscope** | Raw audio signal trace |
 | **Spectrum Fill** | Filled frequency area with gradient |
-| **Radial Bars** | Bars radiating outward from a center point |
+| **Radial Bars** | Bars radiating outward from center |
 
 ---
 
@@ -77,32 +76,32 @@ Each panel supports 8 visualization styles:
 
 | Button | Action |
 |---|---|
-| ⠿ | Drag handle — drag to reorder panels |
+| ⠿ | Drag to reorder panels |
 | ⧉ | Duplicate panel with all settings copied |
-| 🔇 | Mute / unmute stem audio (visible when stem is loaded) |
+| 🔇 | Mute / unmute stem audio |
 | ⚙ | Open / close settings drawer |
-| ⛶ | Toggle fullscreen for this panel only |
-| ✕ | Remove panel |
+| ⛶ | Fullscreen for this panel only |
+| ✕ | Remove panel and unload its stem |
 
 ---
 
 ## Per-Panel Settings
 
-Open the ⚙ settings drawer on any panel to customize:
+Open the ⚙ settings drawer on any panel:
 
-- **Viz Type** — switch visualization style at any time
-- **Color 1 & Color 2** — gradient color control
-- **Sensitivity** — how aggressively the panel reacts to audio (0.2–3.0)
-- **Label** — rename the panel to anything
-- **BG Image** — load a static background image behind the visualization
+- **Viz Type** — switch visualization style
+- **Color 1 & Color 2** — gradient colors
+- **Sensitivity** — reactivity (0.2–3.0)
+- **Label** — rename the panel
+- **BG Image** — static background image behind the visualization
 
-**Background Image settings:**
-- Accepted formats: JPG, PNG, WebP
+**Background Image options:**
+- Formats: JPG, PNG, WebP
 - **BG Opacity** — 5% to 90% (default 35%)
 - **BG Fit** — Cover, Contain, or Fill
-- Best with dark, moody, or textured images
+- Best with dark or textured images
 
-> Background images are not saved in layout JSON exports and must be reloaded manually after loading a saved layout.
+> Background images are not saved in layout JSON exports and must be reloaded manually.
 
 ---
 
@@ -110,53 +109,75 @@ Open the ⚙ settings drawer on any panel to customize:
 
 Each panel can have its own stem file for accurate per-instrument visualization.
 
-**How stems work:**
-
-Click **+ LOAD STEM** in any panel's stem slot to assign a stem audio file to that panel. The panel then visualizes only that stem's frequencies instead of the full mix.
-
-**Audio routing by scenario:**
+**Audio routing:**
 
 | Scenario | What you hear |
 |---|---|
 | Full mix only | Main track through speakers |
-| Full mix + stems | Main track audible · stems silent (analysis only) |
-| Stems only | All stems play audibly, reconstructing the song |
+| Full mix + stems | Main track audible · stems silent |
+| Stems only | All stems audible, reconstructing the song |
+| Mic active | Mic input only · stems bypassed |
 
 **Stem slot controls:**
-- **+ LOAD STEM** — assign a stem file to this panel
-- **↺ CHANGE** — swap stem without losing panel settings
-- **✕** — remove stem, panel reverts to full mix analysis
-- **🔇** — mute / unmute this stem's audio independently
+- **+ LOAD STEM** — assign a stem file
+- **↺ CHANGE** — swap stem without losing settings
+- **✕** — remove stem, panel reverts to full mix
+- **🔇** — mute / unmute this stem independently
 
 **Stem sync indicator:**
-- 🟢 Pulsing green — stem is live and playing
-- 🟠 Orange — stem loaded but paused
+- 🟢 Pulsing green — playing
+- 🟠 Orange — paused
 - ⚫ Dark — no stem loaded
 
-**Frequency bands and stems:**
-The band setting acts as a filter on top of the stem. A drums stem on a HIGHS panel shows only the cymbal and hi-hat content of that stem. A vocals stem on a BASS panel will show almost nothing — vocals don't live there. Use band settings creatively to isolate exactly the part of each instrument you want to visualize.
+> **Tip:** Use LALAL.AI, Moises.app, or Audiostrip to split your song into stems before loading them here.
 
-> **Tip:** Use LALAL.AI, Moises.app, or Audiostrip to split your songs into stems before loading them here.
+---
+
+## Microphone Input
+
+Switch all panels to live microphone visualization without uploading any files.
+
+**How to use:**
+1. Open ≡ menu → **🎤 USE MICROPHONE**
+2. Browser prompts for mic permission — allow it
+3. Any playing audio stops
+4. Red **🎤 MICROPHONE LIVE** bar appears with pulsing dot
+5. All panels instantly visualize live mic input
+
+**To stop mic:**
+- Click **⏹ STOP MIC** in the mic bar
+- Or open ≡ menu → **🎤 USE MICROPHONE** again
+- Or click **↺ RESET**
+
+**Important notes:**
+- Mic audio is never routed to speakers — no feedback loop
+- Stems are bypassed while mic is active
+- All panel settings, viz types, and colors stay intact
+- Returning to file mode restores everything exactly as it was
+- Works best with headphones or in a quiet environment
+
+**Browser mic permission:**
+- Requires HTTPS — works automatically on `vizstudio.vercel.app`
+- Safari on iOS/iPadOS supports `getUserMedia` — permission prompt may look different
+- If permission is denied, a toast notification will appear
 
 ---
 
 ## Player Controls
 
 - **▶ / ⏸** — Play and pause all audio simultaneously
-- **Progress bar** — Click to seek · all audio including stems seeks together
+- **Progress bar** — Click to seek · all stems seek together
 - **Volume** — Controls overall output level
-- **⏏ CHANGE TRACK** — Swap the main track without resetting panels
-- **HIDE / SHOW UPLOAD** — Toggle upload zone (in ≡ menu)
+- **⏏ CHANGE TRACK** — Swap main track without resetting panels
+- **✕ CLEAR TRACK** — Remove main track only · panels and stems stay intact
 
 ---
 
 ## Save & Load Layout
 
-**💾 SAVE LAYOUT** exports a `vizstudio-layout.json` file containing your full panel configuration.
+**💾 SAVE LAYOUT** — exports `vizstudio-layout.json`
 
-**📂 LOAD LAYOUT** rebuilds your panels instantly from a saved file.
-
-**What is saved:**
+**📂 LOAD LAYOUT** — rebuilds panels from a saved file
 
 | Saved ✅ | Not saved ❌ |
 |---|---|
@@ -166,41 +187,37 @@ The band setting acts as a filter on top of the stem. A drums stem on a HIGHS pa
 | Colors (1 & 2) | Playback position |
 | Sensitivity | |
 | Custom labels | |
-| Stem filenames (as reload hints) | |
+| Stem filenames (as hints) | |
 
-After loading a layout, panels with previously assigned stems show **⚠ RELOAD: filename** in the stem slot as a reminder of which file to re-assign.
-
-> Audio files and images can't be saved to JSON — browsers block JavaScript from storing local file references between sessions for security reasons.
+> Audio files and images can't be saved — browsers block local file access between sessions for security reasons. Stem filename hints appear in each panel after loading so you know which files to reload.
 
 ---
 
 ## Presentation Mode
 
-Click **⛶ PRESENT** to enter a clean full-screen visualization view.
+Click **⛶ PRESENT** to enter full-screen visualization mode.
 
-**What is hidden:**
-- Header, player bar, upload zone
-- Panel headers, stem slots, settings drawers
-- Add panel card, section labels, panel borders
+**What is hidden:** header, player bar, upload zone, panel headers, stem slots, settings drawers, borders
 
-**What stays:**
-- Pure canvas visualizations filling the entire screen
-- Panels automatically arrange into the most balanced grid layout for the number of panels open
-- A faint **✕ EXIT PRESENTATION** button in the bottom-right corner (becomes visible on hover)
+**What stays:** pure canvas visualizations filling the entire screen
 
-**Panel layout in presentation mode:**
+**Panel grid in presentation mode:**
 
-| Panels | Grid |
+| Panels | Layout |
 |---|---|
 | 1 | Full screen |
-| 2 | 2 columns |
-| 4 | 2×2 |
-| 6 | 3×2 |
-| 9 | 3×3 |
+| 2 | 2 equal columns |
+| 3 | 2 top + 1 full width below |
+| 4 | 2×2 perfect grid |
+| 5 | 3 top + 2 equal below |
+| 6 | 3×2 perfect grid |
+| 9 | 3×3 perfect grid |
 
-**To exit presentation mode:**
-- Press **Escape**
-- Click **✕ EXIT PRESENTATION** (bottom-right)
+Panels use LCM-based column spanning so every row fills the screen uniformly — no gaps, no uneven sizing.
+
+Screen width column caps: ≤900px = 2 cols · ≤1200px = 3 cols · >1200px = 4 cols
+
+**To exit:** press **Escape** or click **✕ EXIT PRESENTATION** (bottom-right, hover to reveal)
 
 > Play your music before entering presentation mode — controls are hidden inside it.
 
@@ -210,21 +227,23 @@ Click **⛶ PRESENT** to enter a clean full-screen visualization view.
 
 | Device | Comfortable Panels | Notes |
 |---|---|---|
-| Desktop — dedicated GPU | 10–20 | Browser is the ceiling, not hardware |
+| Desktop — dedicated GPU | 10–20 | Browser is the ceiling |
 | Mid-range laptop | 6–10 | Avoid all-particle layouts |
-| iPad Pro M4 | 8–10 | Safari engine is the main constraint |
-| iPad Air M3 | 4–6 | Stick to Bars, Wave, Oscilloscope |
+| iPad Pro M4 | 8–10 | Safari engine is the constraint |
+| iPad Air M3 / 11" | 4–6 | Max 3 cols in landscape |
+| Android tablet | 6–10 | Chrome handles it well |
+| Phone | Not recommended | Best on tablet or desktop |
 
 **Viz types by GPU weight (lightest → heaviest):**
 Oscilloscope → Bars → Wave → Mirror Bars → Spectrum Fill → Radial Bars → Circle → Particles
 
-> Background images add a small per-panel overhead. Use sparingly on lower-end devices.
+> Background images add slight per-panel rendering overhead. Use sparingly on lower-end devices.
 
 ---
 
 ## Privacy
 
-All audio and image processing runs entirely in your browser. Nothing is uploaded to any server. No data is collected or transmitted. Your music and images never leave your device.
+All audio, image, and microphone processing runs entirely in your browser. Nothing is uploaded to any server. No data is collected or transmitted. Your music, images, and mic audio never leave your device.
 
 ---
 
@@ -238,14 +257,15 @@ All audio and image processing runs entirely in your browser. Nothing is uploade
 | Safari (desktop) | ✅ Full |
 | Chrome / Firefox (iOS & iPadOS) | ⚠️ Runs on Safari engine |
 | Safari (iOS & iPadOS) | ⚠️ Works with some audio limitations |
+| Android Chrome | ✅ Full support |
 
-> On iPad, use files stored in the **Files app** or **iCloud Drive**. Apple Music library files are not accessible from the browser due to iOS restrictions.
+> On iPad, use files stored in the **Files app** or **iCloud Drive**. Apple Music library files are not accessible from the browser. Microphone requires HTTPS — provided automatically by Vercel.
 
 ---
 
 ## Deployment
 
-VIZSTUDIO is a single HTML file — no build step, no dependencies, no framework.
+Single HTML file — no build step, no dependencies, no framework.
 
 ### Vercel
 
@@ -253,12 +273,10 @@ VIZSTUDIO is a single HTML file — no build step, no dependencies, no framework
 1. Sign in to [vercel.com](https://vercel.com)
 2. Click **Add New → Project**
 3. Drag `index.html` onto the page
-4. Done — live URL provided instantly
 
-**Option 2 — GitHub (recommended for updates)**
-1. Create a repo with `index.html` at the root
-2. Connect the repo to Vercel
-3. Every push auto-redeploys
+**Option 2 — GitHub (recommended)**
+1. Repo with `index.html` at root → connect to Vercel
+2. Every push auto-redeploys
 
 **Option 3 — CLI**
 ```bash
@@ -267,7 +285,6 @@ cd your-folder
 vercel
 ```
 
-**Folder structure:**
 ```
 your-project/
 ├── index.html
