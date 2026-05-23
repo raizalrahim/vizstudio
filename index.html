@@ -430,7 +430,7 @@
         <div class="help-row"><span class="help-key">OSCILLOSCOPE</span><span class="help-desc">Raw audio signal trace</span></div>
         <div class="help-row"><span class="help-key">SPECTRUM FILL</span><span class="help-desc">Filled frequency area with gradient</span></div>
         <div class="help-row"><span class="help-key">RADIAL BARS</span><span class="help-desc">Bars radiating outward from center</span></div>
-        <div class="help-row"><span class="help-key">WATERFALL</span><span class="help-desc">Scrolling frequency history rolling downward — shows how sound evolves over time</span></div>
+        <div class="help-row"><span class="help-key">RING BURST</span><span class="help-desc">Concentric rings that expand outward on energy peaks then fade — dramatic on bass-heavy music</span></div>
         <div class="help-row"><span class="help-key">LISSAJOUS</span><span class="help-desc">Geometric looping curves drawn from audio signal — hypnotic and mathematical</span></div>
       </div>
       <div class="help-divider"></div>
@@ -553,7 +553,7 @@ const BANDS = [
   { id:'high',  label:'HIGHS',      freq:'4k–20k Hz',   color:'#00ff88', fLow:4000, fHigh:20000 },
   { id:'all',   label:'FULL RANGE', freq:'20–20k Hz',   color:'#ffffff', fLow:20,   fHigh:20000 },
 ];
-const VIZ_TYPES = ['BARS','WAVE','CIRCLE','MIRROR BARS','BLOB','OSCILLOSCOPE','SPECTRUM FILL','RADIAL BARS','WATERFALL','LISSAJOUS'];
+const VIZ_TYPES = ['BARS','WAVE','CIRCLE','MIRROR BARS','BLOB','OSCILLOSCOPE','SPECTRUM FILL','RADIAL BARS','RING BURST','LISSAJOUS'];
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let masterAudioCtx = null;
@@ -1086,6 +1086,7 @@ function addPanel(band) {
 function removePanel(id) {
   removeStemAudio(id);
   waterfallBuffers.delete(id);
+  ringBurstState.delete(id);
   panels = panels.filter(p => p.id !== id);
   renderPanelsGrid();
   updateModeBadge();
@@ -1502,12 +1503,9 @@ function drawPanel(p) {
   const lf = el.querySelector('.panel-level-fill');
   if (lf) lf.style.width = (clampedEnergy * 100) + '%';
 
-  // waterfall manages its own offscreen buffer — skip clear and fill entirely
-  if (p.vizType !== 'WATERFALL') {
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = p.bgImage ? 'rgba(10,10,10,0.55)' : '#0a0a0a';
-    ctx.fillRect(0, 0, W, H);
-  }
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = p.bgImage ? 'rgba(10,10,10,0.55)' : '#0a0a0a';
+  ctx.fillRect(0, 0, W, H);
 
   if (!useFreqData) return;
 
@@ -1527,7 +1525,7 @@ function drawPanel(p) {
     case 'OSCILLOSCOPE':  drawOscilloscope(ctx, W, H, tData, col1); break;
     case 'SPECTRUM FILL': drawSpectrumFill(ctx, W, H, slicedFreq, col1, col2, p.sensitivity); break;
     case 'RADIAL BARS':   drawRadialBars(ctx, W, H, slicedFreq, col1, clampedEnergy); break;
-    case 'WATERFALL':     drawWaterfall(ctx, W, H, slicedFreq, col1, col2, p.id); break;
+    case 'RING BURST':    drawRingBurst(ctx, W, H, clampedEnergy, col1, col2, p.id); break;
     case 'LISSAJOUS':     drawLissajous(ctx, W, H, tData, col1, clampedEnergy); break;
   }
 }
@@ -1711,41 +1709,63 @@ function drawBlob(ctx, W, H, data, col1, col2, energy) {
   ctx.globalAlpha = 1;
 }
 
-// offscreen waterfall buffers per panel
-const waterfallBuffers = new Map();
+// ring burst state per panel
+const ringBurstState = new Map();
 
-function drawWaterfall(ctx, W, H, data, col1, col2, panelId) {
-  // get or create offscreen buffer for this panel
-  let buf = waterfallBuffers.get(panelId);
-  if (!buf || buf.width !== W || buf.height !== H) {
-    buf = document.createElement('canvas');
-    buf.width = W;
-    buf.height = H;
-    waterfallBuffers.set(panelId, buf);
-  }
-  const bCtx = buf.getContext('2d');
+function drawRingBurst(ctx, W, H, energy, col1, col2, panelId) {
+  const cx = W / 2, cy = H / 2;
+  const maxR = Math.min(W, H) * 0.48;
 
-  // shift buffer down by 1 pixel
-  const imageData = bCtx.getImageData(0, 0, W, H - 1);
-  bCtx.putImageData(imageData, 0, 1);
+  // get or init ring list for this panel
+  if (!ringBurstState.has(panelId)) ringBurstState.set(panelId, []);
+  const rings = ringBurstState.get(panelId);
 
-  // draw new top row
-  const n = data.length;
-  for (let x = 0; x < W; x++) {
-    const v = data[Math.floor(x * n / W)] / 255;
-    const c1 = hexToRgb(col1) || { r:232, g:255, b:0 };
-    const c2 = hexToRgb(col2 !== '#000000' ? col2 : '#001a1a') || { r:0, g:26, b:26 };
-    const r = Math.round(c2.r + (c1.r - c2.r) * v);
-    const g = Math.round(c2.g + (c1.g - c2.g) * v);
-    const b = Math.round(c2.b + (c1.b - c2.b) * v);
-    const alpha = Math.round((0.15 + v * 0.85) * 255);
-    const px = bCtx.createImageData(1, 1);
-    px.data[0] = r; px.data[1] = g; px.data[2] = b; px.data[3] = alpha;
-    bCtx.putImageData(px, x, 0);
+  // spawn new ring on energy threshold
+  if (energy > 0.15) {
+    rings.push({
+      r: maxR * 0.08,
+      maxR: maxR * (0.4 + energy * 0.6),
+      alpha: 0.9,
+      width: 1.5 + energy * 3,
+      speed: 2 + energy * 4,
+    });
   }
 
-  // composite buffer onto main canvas
-  ctx.drawImage(buf, 0, 0);
+  // update and draw rings
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const ring = rings[i];
+    ring.r += ring.speed;
+    ring.alpha -= 0.018;
+    ring.width *= 0.97;
+
+    if (ring.alpha <= 0 || ring.r > ring.maxR) {
+      rings.splice(i, 1);
+      continue;
+    }
+
+    // interpolate color based on ring progress
+    const progress = ring.r / ring.maxR;
+    const col = progress < 0.5 ? col1 : (col2 !== '#000000' ? col2 : col1);
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, ring.r, 0, Math.PI * 2);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = ring.width;
+    ctx.globalAlpha = ring.alpha;
+    ctx.shadowBlur = 8 * ring.alpha;
+    ctx.shadowColor = col;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }
+
+  // center pulse dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4 + energy * 12, 0, Math.PI * 2);
+  ctx.fillStyle = col1;
+  ctx.globalAlpha = 0.3 + energy * 0.6;
+  ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
 function hexToRgb(hex) {
