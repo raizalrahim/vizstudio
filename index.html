@@ -430,6 +430,8 @@
         <div class="help-row"><span class="help-key">OSCILLOSCOPE</span><span class="help-desc">Raw audio signal trace</span></div>
         <div class="help-row"><span class="help-key">SPECTRUM FILL</span><span class="help-desc">Filled frequency area with gradient</span></div>
         <div class="help-row"><span class="help-key">RADIAL BARS</span><span class="help-desc">Bars radiating outward from center</span></div>
+        <div class="help-row"><span class="help-key">WATERFALL</span><span class="help-desc">Scrolling frequency history rolling downward — shows how sound evolves over time</span></div>
+        <div class="help-row"><span class="help-key">LISSAJOUS</span><span class="help-desc">Geometric looping curves drawn from audio signal — hypnotic and mathematical</span></div>
       </div>
       <div class="help-divider"></div>
       <div class="help-section">
@@ -551,7 +553,7 @@ const BANDS = [
   { id:'high',  label:'HIGHS',      freq:'4k–20k Hz',   color:'#00ff88', fLow:4000, fHigh:20000 },
   { id:'all',   label:'FULL RANGE', freq:'20–20k Hz',   color:'#ffffff', fLow:20,   fHigh:20000 },
 ];
-const VIZ_TYPES = ['BARS','WAVE','CIRCLE','MIRROR BARS','BLOB','OSCILLOSCOPE','SPECTRUM FILL','RADIAL BARS'];
+const VIZ_TYPES = ['BARS','WAVE','CIRCLE','MIRROR BARS','BLOB','OSCILLOSCOPE','SPECTRUM FILL','RADIAL BARS','WATERFALL','LISSAJOUS'];
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let masterAudioCtx = null;
@@ -1500,9 +1502,11 @@ function drawPanel(p) {
   if (lf) lf.style.width = (clampedEnergy * 100) + '%';
 
   ctx.clearRect(0, 0, W, H);
-  // use semi-transparent fill when bg image is set so image shows through
-  ctx.fillStyle = p.bgImage ? 'rgba(10,10,10,0.55)' : '#0a0a0a';
-  ctx.fillRect(0, 0, W, H);
+  // waterfall preserves its own pixel history — skip background fill for it
+  if (p.vizType !== 'WATERFALL') {
+    ctx.fillStyle = p.bgImage ? 'rgba(10,10,10,0.55)' : '#0a0a0a';
+    ctx.fillRect(0, 0, W, H);
+  }
 
   if (!useFreqData) return;
 
@@ -1522,6 +1526,8 @@ function drawPanel(p) {
     case 'OSCILLOSCOPE':  drawOscilloscope(ctx, W, H, tData, col1); break;
     case 'SPECTRUM FILL': drawSpectrumFill(ctx, W, H, slicedFreq, col1, col2, p.sensitivity); break;
     case 'RADIAL BARS':   drawRadialBars(ctx, W, H, slicedFreq, col1, clampedEnergy); break;
+    case 'WATERFALL':     drawWaterfall(ctx, W, H, slicedFreq, col1, col2); break;
+    case 'LISSAJOUS':     drawLissajous(ctx, W, H, tData, col1, clampedEnergy); break;
   }
 }
 
@@ -1674,43 +1680,93 @@ function drawBlob(ctx, W, H, data, col1, col2, energy) {
     const angle = (i / points) * Math.PI * 2;
     const dataIdx = Math.floor((i / points) * data.length);
     const freq = data[dataIdx] / 255;
-
-    // layer multiple sine waves for organic morphing
     const noise =
       Math.sin(angle * 3 + time * 1.2) * 0.15 * freq +
       Math.sin(angle * 5 - time * 0.8) * 0.10 * freq +
       Math.sin(angle * 7 + time * 0.5) * 0.06 * freq +
       Math.sin(angle * 2 - time * 1.5) * 0.08 * energy;
-
     const r = baseR * (1 + noise + freq * 0.35);
     const x = cx + Math.cos(angle) * r;
     const y = cy + Math.sin(angle) * r;
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
   ctx.closePath();
-
-  // fill with gradient
   const grad = ctx.createRadialGradient(cx, cy, baseR * 0.1, cx, cy, baseR * 1.4);
   grad.addColorStop(0, col2 === '#000000' ? col1 + '55' : col2 + '88');
   grad.addColorStop(1, col1 + '11');
   ctx.fillStyle = grad;
   ctx.fill();
-
-  // glowing outline
   ctx.strokeStyle = col1;
   ctx.lineWidth = 2;
   ctx.shadowBlur = 12 + energy * 24;
   ctx.shadowColor = col1;
   ctx.stroke();
   ctx.shadowBlur = 0;
-
-  // inner core dot that pulses with energy
   ctx.beginPath();
   ctx.arc(cx, cy, baseR * 0.08 + energy * baseR * 0.12, 0, Math.PI * 2);
   ctx.fillStyle = col1;
   ctx.globalAlpha = 0.4 + energy * 0.5;
   ctx.fill();
   ctx.globalAlpha = 1;
+}
+
+function drawWaterfall(ctx, W, H, data, col1, col2) {
+  // shift existing image down by 1 row
+  const imageData = ctx.getImageData(0, 0, W, H - 1);
+  ctx.putImageData(imageData, 0, 1);
+
+  // draw new top row from current frequency data
+  const n = data.length;
+  for (let x = 0; x < W; x++) {
+    const v = data[Math.floor(x * n / W)] / 255;
+    // interpolate between col2 (low) and col1 (high)
+    const c1 = hexToRgb(col1) || { r:232, g:255, b:0 };
+    const c2 = hexToRgb(col2 !== '#000000' ? col2 : '#003333') || { r:0, g:51, b:51 };
+    const r = Math.round(c2.r + (c1.r - c2.r) * v);
+    const g = Math.round(c2.g + (c1.g - c2.g) * v);
+    const b = Math.round(c2.b + (c1.b - c2.b) * v);
+    ctx.fillStyle = `rgba(${r},${g},${b},${0.2 + v * 0.8})`;
+    ctx.fillRect(x, 0, 1, 1);
+  }
+}
+
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+}
+
+function drawLissajous(ctx, W, H, timeData, col1, energy) {
+  const cx = W / 2, cy = H / 2;
+  const scale = Math.min(W, H) * 0.42;
+  const len = timeData.length;
+  const half = Math.floor(len / 2);
+
+  ctx.beginPath();
+  ctx.strokeStyle = col1;
+  ctx.lineWidth = 1.5;
+  ctx.shadowBlur = 8 + energy * 16;
+  ctx.shadowColor = col1;
+
+  for (let i = 0; i < half; i++) {
+    // X axis: first half of time data
+    const x = cx + ((timeData[i] / 128) - 1) * scale;
+    // Y axis: second half of time data (offset channel simulation)
+    const y = cy + ((timeData[i + half] / 128) - 1) * scale;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // faint bounding circle for reference
+  ctx.beginPath();
+  ctx.arc(cx, cy, scale, 0, Math.PI * 2);
+  ctx.strokeStyle = col1 + '18';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }
 
 // ─── MAIN LOOP ────────────────────────────────────────────────────────────────

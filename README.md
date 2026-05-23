@@ -69,6 +69,8 @@ Each panel independently visualizes a specific frequency band.
 | **Oscilloscope** | Raw audio signal trace |
 | **Spectrum Fill** | Filled frequency area with gradient |
 | **Radial Bars** | Bars radiating outward from center |
+| **Waterfall** | Scrolling frequency history rolling downward — shows how sound evolves over time |
+| **Lissajous** | Geometric looping curves drawn from audio signal — hypnotic and mathematical |
 
 ---
 
@@ -235,7 +237,7 @@ Screen width column caps: ≤900px = 2 cols · ≤1200px = 3 cols · >1200px = 4
 | Phone | Not recommended | Best on tablet or desktop |
 
 **Viz types by GPU weight (lightest → heaviest):**
-Oscilloscope → Bars → Wave → Mirror Bars → Blob → Spectrum Fill → Radial Bars → Circle
+Oscilloscope → Lissajous → Bars → Wave → Mirror Bars → Waterfall → Blob → Spectrum Fill → Radial Bars → Circle
 
 > Background images add slight per-panel rendering overhead. Use sparingly on lower-end devices.
 
